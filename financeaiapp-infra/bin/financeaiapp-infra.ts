@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import "source-map-support/register";
+import * as fs from "fs";
+import * as path from "path";
 import { App } from "aws-cdk-lib";
 import { FinanceaiappBriefingStack } from "../lib/briefing-stack";
 import { FinanceaiappCognitoStack } from "../lib/cognito-stack";
@@ -33,5 +35,13 @@ if (runtimeArn) {
   });
 }
 
-// Frontend S3 + CloudFront — requires built dist/
-new FinanceaiappFrontendStack(app, "FinanceaiappFrontend", { env });
+// Frontend S3 + CloudFront — only when the built `dist/` exists, because
+// BucketDeployment reads it at synth time. Otherwise skip so OIDC / Cognito /
+// Briefing stacks can be deployed independently.
+const frontendDist = path.resolve(
+  __dirname,
+  "../../financeaiapp-frontend/dist",
+);
+if (fs.existsSync(frontendDist)) {
+  new FinanceaiappFrontendStack(app, "FinanceaiappFrontend", { env });
+}
