@@ -1,0 +1,9 @@
+node_modules/
+cdk.out/
+*.d.ts
+!lib/**/*.d.ts
+*.js
+!lambda/**/*.js
+.env
+.env.local
+.DS_Store

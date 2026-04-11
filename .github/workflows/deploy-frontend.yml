@@ -1,0 +1,59 @@
+name: deploy-frontend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "financeaiapp-frontend/**"
+      - ".github/workflows/deploy-frontend.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        working-directory: financeaiapp-frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: financeaiapp-frontend
+        env:
+          VITE_APP_PASSWORD: ${{ secrets.VITE_APP_PASSWORD }}
+          VITE_IDENTITY_POOL_ID: ${{ secrets.VITE_IDENTITY_POOL_ID }}
+          VITE_AGENTCORE_RUNTIME_ARN: ${{ secrets.AGENTCORE_RUNTIME_ARN }}
+          VITE_AWS_REGION: ${{ env.AWS_REGION }}
+        run: pnpm build
+
+      - name: Install CDK dependencies
+        working-directory: financeaiapp-infra
+        run: pnpm install --frozen-lockfile
+
+      - name: CDK deploy FinanceaiappFrontend
+        working-directory: financeaiapp-infra
+        run: npx cdk deploy FinanceaiappFrontend --require-approval never

@@ -1,0 +1,69 @@
+name: deploy-infra
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "financeaiapp-infra/**"
+      - ".github/workflows/deploy-infra.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install CDK dependencies
+        working-directory: financeaiapp-infra
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Lambda dependencies
+        working-directory: financeaiapp-infra/lambda/briefing-proxy
+        run: npm install
+
+      - name: Build Frontend (required for FinanceaiappFrontend bundling)
+        working-directory: financeaiapp-frontend
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: CDK Synth
+        working-directory: financeaiapp-infra
+        env:
+          AGENTCORE_RUNTIME_ARN: ${{ secrets.AGENTCORE_RUNTIME_ARN }}
+        run: npx cdk synth
+
+      - name: CDK Deploy Cognito
+        working-directory: financeaiapp-infra
+        run: npx cdk deploy FinanceaiappCognito --require-approval never
+
+      - name: CDK Deploy Briefing (if runtime ARN set)
+        if: ${{ env.AGENTCORE_RUNTIME_ARN != '' }}
+        working-directory: financeaiapp-infra
+        env:
+          AGENTCORE_RUNTIME_ARN: ${{ secrets.AGENTCORE_RUNTIME_ARN }}
+        run: npx cdk deploy FinanceaiappBriefing --require-approval never

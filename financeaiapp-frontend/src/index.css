@@ -1,0 +1,93 @@
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-mono: "JetBrains Mono", monospace;
+  --font-data: "IBM Plex Mono", monospace;
+
+  --color-bg: #0a0e0f;
+  --color-bg-alt: #11161a;
+  --color-fg: #fba91a;
+  --color-fg-dim: #c0b8a5;
+  --color-muted: #5c6b75;
+  --color-border: #2a3237;
+  --color-border-dim: #1a1f24;
+  --color-up: #39ff14;
+  --color-down: #ff4444;
+  --color-accent: #fba91a;
+  --color-assistant: #7ec8e3;
+  --color-user: #fba91a;
+}
+
+html {
+  background: var(--color-bg);
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-mono);
+  background: var(--color-bg);
+  color: var(--color-fg-dim);
+  min-height: 100vh;
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+  position: relative;
+}
+
+#root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: linear-gradient(rgba(251, 169, 26, 0.025) 50%, transparent 50%);
+  background-size: 100% 3px;
+}
+
+#root::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a3237;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #fba91a;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out;
+}
+
+.cursor-blink::after {
+  content: "▊";
+  color: var(--color-fg);
+  animation: blink 1s steps(1) infinite;
+  margin-left: 2px;
+}

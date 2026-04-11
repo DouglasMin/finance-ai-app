@@ -1,0 +1,63 @@
+# Dependencies
+**/node_modules/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Build artifacts
+**/dist/
+**/build/
+**/*.egg-info/
+**/cdk.out/
+**/.cdk.staging/
+
+# AgentCore CLI artifacts (runtime metadata only, regenerated)
+**/agentcore/.cli/logs/
+**/.agentcore/artifacts/
+
+# Environment / secrets (NEVER commit)
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+**/.env.local
+**/.env.production
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+
+# CDK synthesis (compiled TypeScript output in JS files)
+financeaiapp-infra/*.d.ts
+financeaiapp-infra/*.js
+financeaiapp-infra/bin/*.js
+financeaiapp-infra/bin/*.d.ts
+financeaiapp-infra/lib/*.js
+financeaiapp-infra/lib/*.d.ts
+!financeaiapp-infra/lambda/**/*.js
+
+# uv lock (we commit pyproject.toml, let CI regenerate lock if needed — but keep the lock for reproducibility)
+# Keep: **/uv.lock
+
+# DS
+.superpowers/

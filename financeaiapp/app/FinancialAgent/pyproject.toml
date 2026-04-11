@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "FinancialAgent"
+version = "0.1.0"
+description = "AI Financial Bot Phase 1 — LangChain + LangGraph on AgentCore Runtime"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "aws-opentelemetry-distro",
+    "bedrock-agentcore >= 1.0.3",
+    "boto3 >= 1.42.0",
+    "botocore[crt] >= 1.35.0",
+    # LangChain stack
+    "langchain >= 1.0.3",
+    "langchain-openai >= 0.2.0",
+    "langchain-aws >= 1.0.0",
+    "langgraph >= 1.0.2",
+    "langchain-mcp-adapters >= 0.1.11",
+    "langsmith >= 0.1.0",
+    "mcp >= 1.19.0",
+    # Data layer
+    "pydantic >= 2.9.0",
+    "pykrx >= 1.0.0",
+    "httpx >= 0.27.0",
+    "feedparser >= 6.0.0",
+    # Reliability
+    "tenacity >= 9.0.0",
+    "cachetools >= 5.5.0",
+    "structlog >= 24.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

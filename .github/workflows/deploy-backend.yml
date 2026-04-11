@@ -1,0 +1,68 @@
+name: deploy-backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "financeaiapp/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install agentcore CLI
+        run: npm install -g @aws/agentcore
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update Secrets Manager with API keys
+        run: |
+          aws secretsmanager update-secret \
+            --secret-id financial-bot/api-keys \
+            --region ${{ env.AWS_REGION }} \
+            --secret-string '{
+              "OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}",
+              "ALPHA_VANTAGE_API_KEY": "${{ secrets.ALPHA_VANTAGE_API_KEY }}",
+              "FINNHUB_API_KEY": "${{ secrets.FINNHUB_API_KEY }}",
+              "NAVER_CLIENT_ID": "${{ secrets.NAVER_CLIENT_ID }}",
+              "NAVER_CLIENT_SECRET": "${{ secrets.NAVER_CLIENT_SECRET }}",
+              "LANGSMITH_API_KEY": "${{ secrets.LANGSMITH_API_KEY }}"
+            }'
+
+      - name: Install CDK dependencies (used internally by agentcore deploy)
+        working-directory: financeaiapp/agentcore/cdk
+        run: npm install
+
+      - name: AgentCore Deploy
+        working-directory: financeaiapp
+        run: agentcore deploy
+
+      - name: Extract runtime ARN and save as GH variable
+        working-directory: financeaiapp
+        run: |
+          RUNTIME_ARN=$(aws bedrock-agentcore list-agent-runtimes \
+            --region ${{ env.AWS_REGION }} \
+            --query "agentRuntimes[?contains(agentRuntimeName, 'financeaiapp') || contains(agentRuntimeName, 'main')].agentRuntimeArn" \
+            --output text | head -1)
+          echo "Extracted ARN: $RUNTIME_ARN"
+          echo "AGENTCORE_RUNTIME_ARN=$RUNTIME_ARN" >> $GITHUB_ENV
