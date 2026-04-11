@@ -7,6 +7,11 @@ on:
       - "financeaiapp-infra/**"
       - ".github/workflows/deploy-infra.yml"
   workflow_dispatch:
+    inputs:
+      deploy_briefing:
+        description: "Deploy FinanceaiappBriefing stack"
+        type: boolean
+        default: true
 
 permissions:
   id-token: write
@@ -14,10 +19,14 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
+  CDK_DEFAULT_ACCOUNT: "612529367436"
+  CDK_DEFAULT_REGION: us-east-1
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    outputs:
+      identity_pool_id: ${{ steps.cognito.outputs.identity_pool_id }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,24 +54,21 @@ jobs:
         working-directory: financeaiapp-infra/lambda/briefing-proxy
         run: npm install
 
-      - name: Build Frontend (required for FinanceaiappFrontend bundling)
-        working-directory: financeaiapp-frontend
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm build
-
-      - name: CDK Synth
-        working-directory: financeaiapp-infra
-        env:
-          AGENTCORE_RUNTIME_ARN: ${{ secrets.AGENTCORE_RUNTIME_ARN }}
-        run: npx cdk synth
-
       - name: CDK Deploy Cognito
+        id: cognito
         working-directory: financeaiapp-infra
-        run: npx cdk deploy FinanceaiappCognito --require-approval never
+        run: |
+          npx cdk deploy FinanceaiappCognito --require-approval never --outputs-file outputs.json
+          POOL_ID=$(jq -r '.FinanceaiappCognito.IdentityPoolIdOutput' outputs.json)
+          echo "identity_pool_id=$POOL_ID" >> $GITHUB_OUTPUT
+          echo "Cognito Identity Pool: $POOL_ID"
 
-      - name: CDK Deploy Briefing (if runtime ARN set)
-        if: ${{ env.AGENTCORE_RUNTIME_ARN != '' }}
+      - name: CDK Deploy Alarms
+        working-directory: financeaiapp-infra
+        run: npx cdk deploy FinanceaiappAlarms --require-approval never
+
+      - name: CDK Deploy Briefing (requires runtime ARN)
+        if: ${{ secrets.AGENTCORE_RUNTIME_ARN != '' && (github.event.inputs.deploy_briefing != 'false') }}
         working-directory: financeaiapp-infra
         env:
           AGENTCORE_RUNTIME_ARN: ${{ secrets.AGENTCORE_RUNTIME_ARN }}

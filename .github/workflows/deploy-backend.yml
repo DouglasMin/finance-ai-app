@@ -18,6 +18,8 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    outputs:
+      runtime_arn: ${{ steps.extract.outputs.runtime_arn }}
     steps:
       - uses: actions/checkout@v4
 
@@ -40,14 +42,17 @@ jobs:
           aws secretsmanager update-secret \
             --secret-id financial-bot/api-keys \
             --region ${{ env.AWS_REGION }} \
-            --secret-string '{
-              "OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}",
-              "ALPHA_VANTAGE_API_KEY": "${{ secrets.ALPHA_VANTAGE_API_KEY }}",
-              "FINNHUB_API_KEY": "${{ secrets.FINNHUB_API_KEY }}",
-              "NAVER_CLIENT_ID": "${{ secrets.NAVER_CLIENT_ID }}",
-              "NAVER_CLIENT_SECRET": "${{ secrets.NAVER_CLIENT_SECRET }}",
-              "LANGSMITH_API_KEY": "${{ secrets.LANGSMITH_API_KEY }}"
-            }'
+            --secret-string "$(cat <<'SECRET_EOF'
+          {
+            "OPENAI_API_KEY": "${{ secrets.OPENAI_API_KEY }}",
+            "ALPHA_VANTAGE_API_KEY": "${{ secrets.ALPHA_VANTAGE_API_KEY }}",
+            "FINNHUB_API_KEY": "${{ secrets.FINNHUB_API_KEY }}",
+            "NAVER_CLIENT_ID": "${{ secrets.NAVER_CLIENT_ID }}",
+            "NAVER_CLIENT_SECRET": "${{ secrets.NAVER_CLIENT_SECRET }}",
+            "LANGSMITH_API_KEY": "${{ secrets.LANGSMITH_API_KEY }}"
+          }
+          SECRET_EOF
+          )"
 
       - name: Install CDK dependencies (used internally by agentcore deploy)
         working-directory: financeaiapp/agentcore/cdk
@@ -55,14 +60,20 @@ jobs:
 
       - name: AgentCore Deploy
         working-directory: financeaiapp
-        run: agentcore deploy
+        run: agentcore deploy --yes
 
-      - name: Extract runtime ARN and save as GH variable
-        working-directory: financeaiapp
+      - name: Extract runtime ARN
+        id: extract
         run: |
           RUNTIME_ARN=$(aws bedrock-agentcore list-agent-runtimes \
             --region ${{ env.AWS_REGION }} \
-            --query "agentRuntimes[?contains(agentRuntimeName, 'financeaiapp') || contains(agentRuntimeName, 'main')].agentRuntimeArn" \
+            --query "agentRuntimes[?agentRuntimeName=='main' || contains(agentRuntimeName, 'financial') || contains(agentRuntimeName, 'financeai')].agentRuntimeArn" \
             --output text | head -1)
-          echo "Extracted ARN: $RUNTIME_ARN"
-          echo "AGENTCORE_RUNTIME_ARN=$RUNTIME_ARN" >> $GITHUB_ENV
+          echo "Extracted runtime ARN: $RUNTIME_ARN"
+          echo "runtime_arn=$RUNTIME_ARN" >> $GITHUB_OUTPUT
+
+      - name: Update AGENTCORE_RUNTIME_ARN secret
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Note: GITHUB_TOKEN cannot write to repository secrets. Set AGENTCORE_RUNTIME_ARN manually from extract step output: ${{ steps.extract.outputs.runtime_arn }}"

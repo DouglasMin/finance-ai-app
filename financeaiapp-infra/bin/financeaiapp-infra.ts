@@ -3,6 +3,7 @@ import "source-map-support/register";
 import * as fs from "fs";
 import * as path from "path";
 import { App } from "aws-cdk-lib";
+import { FinanceaiappAlarmsStack } from "../lib/alarms-stack";
 import { FinanceaiappBriefingStack } from "../lib/briefing-stack";
 import { FinanceaiappCognitoStack } from "../lib/cognito-stack";
 import { FinanceaiappFrontendStack } from "../lib/frontend-stack";
@@ -25,6 +26,12 @@ new FinanceaiappOidcStack(app, "FinanceaiappOidc", {
 
 // Cognito Identity Pool — always deployable
 new FinanceaiappCognitoStack(app, "FinanceaiappCognito", { env });
+
+// CloudWatch alarms + SNS topic
+new FinanceaiappAlarmsStack(app, "FinanceaiappAlarms", {
+  env,
+  alertEmail: process.env.ALERT_EMAIL ?? "dongik.dev73@gmail.com",
+});
 
 // Briefing Lambda + EventBridge — requires AgentCore Runtime ARN
 const runtimeArn = process.env.AGENTCORE_RUNTIME_ARN;
