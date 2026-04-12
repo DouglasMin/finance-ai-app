@@ -1,61 +1,64 @@
 """Orchestrator — LangChain create_agent with all Phase 1 tools.
 
 Top-level agent that handles conversation, tool routing, and memory.
-The research subgraph (fetch_market ∥ fetch_news → analyze) is exposed as
-a single `research` tool; watchlist/briefing/preferences/sessions are
-direct DDB tools.
+Detects LLM provider changes at runtime and recreates the agent
+without server restart.
 """
-import os
+from pathlib import Path
 
 from langchain.agents import create_agent
 from langgraph.checkpoint.memory import InMemorySaver
 
 from agents.research_tool import research
-from infra.llm import get_llm
+from infra.llm import get_llm, get_provider
 from tools.briefing import get_briefing, get_briefings
+from tools.compare_tickers import compare_tickers
+from tools.news_previews import fetch_news_previews
 from tools.preferences import get_preferences, set_preference
 from tools.sessions import list_sessions
 from tools.watchlist import add_watchlist, list_watchlist, remove_watchlist
 
 _orchestrator = None
 _checkpointer = None
+_current_provider: str | None = None
+
+_prompt_path = Path(__file__).resolve().parent.parent / "prompts" / "orchestrator.md"
 
 
 def _load_prompt() -> str:
-    prompt_path = os.path.join(
-        os.path.dirname(__file__), "..", "prompts", "orchestrator.md"
-    )
-    with open(prompt_path, "r", encoding="utf-8") as f:
-        return f.read()
+    return _prompt_path.read_text(encoding="utf-8")
+
+
+_TOOLS = [
+    research,
+    compare_tickers,
+    fetch_news_previews,
+    list_watchlist,
+    add_watchlist,
+    remove_watchlist,
+    get_briefings,
+    get_briefing,
+    get_preferences,
+    set_preference,
+    list_sessions,
+]
 
 
 def get_orchestrator():
-    """Return a module-level cached orchestrator instance.
+    """Return cached orchestrator, recreating if LLM provider changed."""
+    global _orchestrator, _checkpointer, _current_provider
 
-    Uses an in-memory checkpointer for session persistence within the
-    lifetime of the agent process. Each session_id becomes a thread_id.
-    """
-    global _orchestrator, _checkpointer
-    if _orchestrator is None:
-        llm = get_llm("orchestrator")
-        _checkpointer = InMemorySaver()
+    provider = get_provider()
+    if _orchestrator is not None and _current_provider == provider:
+        return _orchestrator
 
-        tools = [
-            research,
-            list_watchlist,
-            add_watchlist,
-            remove_watchlist,
-            get_briefings,
-            get_briefing,
-            get_preferences,
-            set_preference,
-            list_sessions,
-        ]
-
-        _orchestrator = create_agent(
-            model=llm,
-            tools=tools,
-            system_prompt=_load_prompt(),
-            checkpointer=_checkpointer,
-        )
+    llm = get_llm("orchestrator")
+    _checkpointer = InMemorySaver()
+    _orchestrator = create_agent(
+        model=llm,
+        tools=_TOOLS,
+        system_prompt=_load_prompt(),
+        checkpointer=_checkpointer,
+    )
+    _current_provider = provider
     return _orchestrator

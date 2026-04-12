@@ -1,0 +1,21 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AssumeByAgentCoreRuntime",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "bedrock-agentcore.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "StringEquals": {
+          "aws:SourceAccount": "612529367436"
+        },
+        "ArnLike": {
+          "aws:SourceArn": "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/*"
+        }
+      }
+    }
+  ]
+}

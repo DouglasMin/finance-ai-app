@@ -2,6 +2,7 @@ export type StreamEventType =
   | "session_start"
   | "tool_call"
   | "tool_result"
+  | "news_links"
   | "assistant"
   | "complete"
   | "error"
@@ -42,6 +43,10 @@ export interface WatchlistItem {
   price?: number;
   currency?: string;
   changePct?: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  volume?: number;
   sparkline?: number[];
 }
 

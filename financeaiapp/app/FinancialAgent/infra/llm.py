@@ -1,39 +1,48 @@
-"""LLM provider factory — OpenAI <-> Bedrock switchable via env var.
+"""LLM provider factory — OpenAI <-> Bedrock switchable at runtime.
 
-Reads LLM_PROVIDER ("openai" | "bedrock") and {PURPOSE}_MODEL to return the
-appropriate chat model. Keeps agent code provider-agnostic.
-
-Defaults:
-    LLM_PROVIDER=openai
-    ORCHESTRATOR_MODEL=gpt-5.4-mini
-    ANALYZE_MODEL=gpt-5.4
-
-Bedrock override example:
-    LLM_PROVIDER=bedrock
-    ORCHESTRATOR_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0
-    ANALYZE_MODEL=us.anthropic.claude-sonnet-4-5-20250929-v1:0
+Provider can be changed via DDB preference (PREF#llm_provider) without
+server restart. Falls back to LLM_PROVIDER env var if no preference set.
+Callers should use get_provider() to check the current provider and
+invalidate cached instances when it changes.
 """
 import os
+import threading
 from typing import Literal
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
 from infra.secrets import get_secret
+from storage.ddb import get_item
 
 Purpose = Literal["orchestrator", "analyze"]
 
 _DEFAULTS: dict[tuple[str, str], str] = {
     ("openai", "orchestrator"): "gpt-5.4-mini",
     ("openai", "analyze"): "gpt-5.4",
-    ("bedrock", "orchestrator"): "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-    ("bedrock", "analyze"): "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    ("bedrock", "orchestrator"): "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+    ("bedrock", "analyze"): "global.anthropic.claude-opus-4-6-v1",
 }
+
+_provider_lock = threading.Lock()
+
+
+def get_provider() -> str:
+    """Return current LLM provider — checks DDB preference first, then env var."""
+    try:
+        pref = get_item("PREF#llm_provider")
+        if pref and pref.get("value") in ("openai", "bedrock"):
+            return pref["value"]
+    except Exception:
+        pass
+    return os.environ.get("LLM_PROVIDER", "openai").lower()
 
 
 def get_llm(purpose: Purpose) -> BaseChatModel:
-    provider = os.environ.get("LLM_PROVIDER", "openai").lower()
+    provider = get_provider()
     env_var = f"{purpose.upper()}_MODEL"
-    model = os.environ.get(env_var) or _DEFAULTS[(provider, purpose)]
+    model = os.environ.get(env_var) or _DEFAULTS.get(
+        (provider, purpose), _DEFAULTS[("openai", purpose)]
+    )
 
     if provider == "openai":
         from langchain_openai import ChatOpenAI
@@ -46,7 +55,7 @@ def get_llm(purpose: Purpose) -> BaseChatModel:
     elif provider == "bedrock":
         from langchain_aws import ChatBedrockConverse
 
-        region = os.environ.get("BEDROCK_REGION", "us-east-1")
+        region = os.environ.get("BEDROCK_REGION", "ap-northeast-2")
         return ChatBedrockConverse(
             model=model,
             region_name=region,

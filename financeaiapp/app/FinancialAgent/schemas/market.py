@@ -13,6 +13,9 @@ class MarketQuote(BaseModel):
     price: float
     currency: str  # "USD", "KRW", etc.
     change_pct: Optional[float] = None
+    open: Optional[float] = None
+    high: Optional[float] = None
+    low: Optional[float] = None
     volume: Optional[float] = None
     timestamp: datetime
     source: str  # "okx", "alphavantage", "pykrx", "frankfurter"

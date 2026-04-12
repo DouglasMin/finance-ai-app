@@ -19,7 +19,7 @@ _table = None
 def get_table():
     global _table
     if _table is None:
-        region = os.environ.get("AWS_REGION", "us-east-1")
+        region = os.environ.get("AWS_REGION", "ap-northeast-2")
         dynamodb = boto3.resource("dynamodb", region_name=region)
         _table = dynamodb.Table(TABLE_NAME)
     return _table

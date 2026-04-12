@@ -1,0 +1,81 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SecretsManagerRead",
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+      ],
+      "Resource": "arn:aws:secretsmanager:ap-northeast-2:612529367436:secret:financial-bot/*"
+    },
+    {
+      "Sid": "DynamoDBFullAccessOnTable",
+      "Effect": "Allow",
+      "Action": "dynamodb:*",
+      "Resource": [
+        "arn:aws:dynamodb:ap-northeast-2:612529367436:table/financial-bot",
+        "arn:aws:dynamodb:ap-northeast-2:612529367436:table/financial-bot/index/*"
+      ]
+    },
+    {
+      "Sid": "BedrockInvokeAnyModel",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudWatchLogsForAgentCore",
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:PutLogEvents",
+        "logs:DescribeLogStreams"
+      ],
+      "Resource": "arn:aws:logs:ap-northeast-2:612529367436:log-group:/aws/bedrock-agentcore/*"
+    },
+    {
+      "Sid": "CloudWatchMetrics",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricData"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "cloudwatch:namespace": [
+            "bedrock-agentcore",
+            "financeaiapp"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "XRayTracing",
+      "Effect": "Allow",
+      "Action": [
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords",
+        "xray:GetSamplingRules",
+        "xray:GetSamplingTargets"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRImagePullForAgentCore",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

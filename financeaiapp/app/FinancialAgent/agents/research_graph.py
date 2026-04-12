@@ -5,7 +5,8 @@ StateGraph, uses fan-out from START to both fetch nodes, then fan-in to
 the analyze node. Fetch nodes are pure Python (no LLM); analyze node is
 the only LLM call on the retrieval path.
 """
-from typing import Literal, Optional, TypedDict
+import operator
+from typing import Annotated, Literal, Optional, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
@@ -23,7 +24,7 @@ class ResearchState(TypedDict):
     market_data: Optional[MarketSnapshot]
     news_data: Optional[NewsSnapshot]
     analysis: Optional[str]
-    errors: list[str]
+    errors: Annotated[list[str], operator.add]
 
 
 def build_research_graph():

@@ -15,7 +15,8 @@
       "codeLocation": "app/FinancialAgent/",
       "runtimeVersion": "PYTHON_3_13",
       "networkMode": "PUBLIC",
-      "protocol": "HTTP"
+      "protocol": "HTTP",
+      "executionRoleArn": "arn:aws:iam::612529367436:role/finance-ai-app-agentcore-runtime"
     }
   ],
   "memories": [],

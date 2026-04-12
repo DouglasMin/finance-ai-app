@@ -6,6 +6,8 @@ interface SessionsPanelProps {
   briefings: BriefingSummary[];
   onSelectSession: (id: string) => void;
   onNewSession: () => void;
+  onDeleteSession: (id: string) => void;
+  onClearAllSessions: () => void;
   onOpenBriefing: (b: BriefingSummary) => void;
 }
 
@@ -15,6 +17,8 @@ function SessionsPanel({
   briefings,
   onSelectSession,
   onNewSession,
+  onDeleteSession,
+  onClearAllSessions,
   onOpenBriefing,
 }: SessionsPanelProps) {
   return (
@@ -28,8 +32,19 @@ function SessionsPanel({
       </button>
 
       <div>
-        <div className="text-[10px] text-muted uppercase tracking-widest mb-1 border-b border-border-dim pb-1">
-          ── sessions ──
+        <div className="flex items-center justify-between border-b border-border-dim pb-1 mb-1">
+          <div className="text-[10px] text-muted uppercase tracking-widest">
+            ── sessions ──
+          </div>
+          {sessions.length > 0 && (
+            <button
+              type="button"
+              onClick={onClearAllSessions}
+              className="text-[9px] text-muted hover:text-down cursor-pointer"
+            >
+              clear all
+            </button>
+          )}
         </div>
         <div className="flex flex-col gap-0.5 mt-1">
           {sessions.length === 0 ? (
@@ -38,25 +53,45 @@ function SessionsPanel({
             </div>
           ) : (
             sessions.map((s) => (
-              <button
-                type="button"
+              <div
                 key={s.id}
-                onClick={() => onSelectSession(s.id)}
-                className={`text-left px-2 py-1 text-[11px] truncate cursor-pointer ${
+                className={`flex items-center group ${
                   activeSessionId === s.id
-                    ? "bg-fg text-bg font-bold"
+                    ? "bg-fg text-bg"
                     : "text-fg-dim hover:bg-bg-alt"
                 }`}
               >
-                <span>{s.title || "untitled"}</span>
-                <span
-                  className={`ml-1 text-[9px] ${
-                    activeSessionId === s.id ? "text-bg" : "text-muted"
+                <button
+                  type="button"
+                  onClick={() => onSelectSession(s.id)}
+                  className={`flex-1 text-left px-2 py-1 text-[11px] truncate cursor-pointer ${
+                    activeSessionId === s.id ? "font-bold" : ""
                   }`}
                 >
-                  ({s.messageCount})
-                </span>
-              </button>
+                  <span>{s.title || "untitled"}</span>
+                  <span
+                    className={`ml-1 text-[9px] ${
+                      activeSessionId === s.id ? "text-bg" : "text-muted"
+                    }`}
+                  >
+                    ({s.messageCount})
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteSession(s.id);
+                  }}
+                  className={`px-1 text-[9px] opacity-0 group-hover:opacity-100 cursor-pointer ${
+                    activeSessionId === s.id
+                      ? "text-bg hover:text-down"
+                      : "text-muted hover:text-down"
+                  }`}
+                >
+                  ✕
+                </button>
+              </div>
             ))
           )}
         </div>

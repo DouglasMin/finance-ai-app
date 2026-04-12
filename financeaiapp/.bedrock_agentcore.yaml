@@ -1,0 +1,62 @@
+default_agent: FinancialAgent
+agents:
+  FinancialAgent:
+    name: FinancialAgent
+    language: python
+    node_version: '20'
+    entrypoint: /Users/douggy/per-projects/finance-ai-app/financeaiapp/app/FinancialAgent/main.py
+    deployment_type: container
+    runtime_type: null
+    platform: linux/arm64
+    container_runtime: docker
+    source_path: /Users/douggy/per-projects/finance-ai-app/financeaiapp/app/FinancialAgent
+    aws:
+      execution_role: arn:aws:iam::612529367436:role/finance-ai-app-agentcore-runtime
+      execution_role_auto_create: true
+      account: '612529367436'
+      region: ap-northeast-2
+      ecr_repository: 612529367436.dkr.ecr.ap-northeast-2.amazonaws.com/bedrock-agentcore-financialagent
+      ecr_auto_create: false
+      s3_path: null
+      s3_auto_create: false
+      network_configuration:
+        network_mode: PUBLIC
+        network_mode_config: null
+      protocol_configuration:
+        server_protocol: HTTP
+      observability:
+        enabled: true
+      lifecycle_configuration:
+        idle_runtime_session_timeout: null
+        max_lifetime: null
+    bedrock_agentcore:
+      agent_id: FinancialAgent-uYnqdNGMki
+      agent_arn: arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki
+      agent_session_id: 2c421c3e-8278-4461-976d-b99e5c3a5c32
+    codebuild:
+      project_name: bedrock-agentcore-financialagent-builder
+      execution_role: arn:aws:iam::612529367436:role/AmazonBedrockAgentCoreSDKCodeBuild-ap-northeast-2-ed5e79b315
+      source_bucket: bedrock-agentcore-codebuild-sources-612529367436-ap-northeast-2
+    memory:
+      mode: NO_MEMORY
+      memory_id: null
+      memory_arn: null
+      memory_name: null
+      event_expiry_days: 30
+      first_invoke_memory_check_done: false
+      was_created_by_toolkit: false
+    identity:
+      credential_providers: []
+      workload: null
+    aws_jwt:
+      enabled: false
+      audiences: []
+      signing_algorithm: ES384
+      issuer_url: null
+      duration_seconds: 300
+    authorizer_configuration: null
+    request_header_configuration: null
+    oauth_configuration: null
+    api_key_env_var_name: null
+    api_key_credential_provider_name: null
+    is_generated_by_agentcore_create: false

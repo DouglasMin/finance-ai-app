@@ -51,6 +51,10 @@ async def get_us_stock(symbol: str) -> MarketQuote:
             price=price,
             currency="USD",
             change_pct=float(change_pct_str) if change_pct_str else None,
+            open=float(quote_data["02. open"]) if quote_data.get("02. open") else None,
+            high=float(quote_data["03. high"]) if quote_data.get("03. high") else None,
+            low=float(quote_data["04. low"]) if quote_data.get("04. low") else None,
+            volume=float(quote_data["06. volume"]) if quote_data.get("06. volume") else None,
             timestamp=datetime.now(timezone.utc),
             source="alphavantage",
         )

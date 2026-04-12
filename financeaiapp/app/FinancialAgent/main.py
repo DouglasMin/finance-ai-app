@@ -3,33 +3,95 @@
 Top-level orchestrator invocation with SSE streaming. Each yielded dict
 is wrapped as `data: {json}\n\n` by AgentCore's _convert_to_sse.
 """
+import os
+import re
 import uuid
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from langchain_core.messages import HumanMessage
 
 from agents.orchestrator import get_orchestrator
-from handlers.briefing import generate_briefing
+from handlers.briefing import generate_briefing, run_briefing
+from handlers.watchlist import get_watchlist_items, list_watchlist
+from infra.llm import get_provider
 from infra.logging_config import correlation_id_var, get_logger, setup_logging
+from infra.secrets import get_secret
+from storage.ddb import put_item
 from tools.sessions import upsert_session
 
 setup_logging()
 log = get_logger("main")
+
+# langchain/langsmith reads LANGSMITH_API_KEY directly from os.environ,
+# so we must inject it from Secrets Manager before any traced call runs.
+# Non-sensitive flags (LANGCHAIN_TRACING_V2, LANGCHAIN_PROJECT) stay as
+# container env vars.
+if os.environ.get("LANGCHAIN_TRACING_V2", "").lower() == "true":
+    _ls_key = get_secret("LANGSMITH_API_KEY")
+    if _ls_key:
+        os.environ.setdefault("LANGSMITH_API_KEY", _ls_key)
+    else:
+        log.warning("langsmith.key.missing", reason="not in Secrets Manager")
 
 app = BedrockAgentCoreApp()
 
 # Custom route: POST /briefing — called by Lambda proxy from EventBridge cron
 app.add_route("/briefing", generate_briefing, methods=["POST"])
 
+# Custom route: GET /watchlist — direct JSON endpoint for the UI side panel
+app.add_route("/watchlist", list_watchlist, methods=["GET"])
+
 
 @app.entrypoint
 async def invoke(payload, context):
-    """Primary chat entrypoint — streams orchestrator events as SSE."""
+    """Primary entrypoint — dispatches on `action` field.
+
+    Supported actions (all work in dev + prod via InvokeAgentRuntimeCommand):
+      - "chat" (default): streams orchestrator events as SSE
+      - "briefing": runs the daily briefing flow and yields one result event
+      - "list_watchlist": returns the enriched watchlist as one event
+
+    Non-chat actions are one-shot and yield a single data event + complete.
+    """
     action = payload.get("action", "chat")
     correlation_id = payload.get("correlation_id") or str(uuid.uuid4())
     correlation_id_var.set(correlation_id)
 
     log.info("invoke.start", action=action)
+
+    if action == "list_watchlist":
+        items = await get_watchlist_items()
+        yield {"event": "watchlist", "items": items}
+        yield {"event": "complete"}
+        return
+
+    if action == "get_llm_provider":
+        provider = get_provider()
+        yield {"event": "llm_provider", "provider": provider}
+        yield {"event": "complete"}
+        return
+
+    if action == "set_llm_provider":
+        new_provider = payload.get("provider", "").lower()
+        if new_provider not in ("openai", "bedrock"):
+            yield {"event": "error", "message": f"Invalid provider: {new_provider}. Use 'openai' or 'bedrock'."}
+            return
+        from datetime import datetime, timezone
+        put_item("PREF#llm_provider", {
+            "value": new_provider,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        })
+        log.info("llm_provider.changed", provider=new_provider)
+        yield {"event": "llm_provider", "provider": new_provider}
+        yield {"event": "complete"}
+        return
+
+    if action == "briefing":
+        time_of_day = payload.get("time_of_day", "AM")
+        result = await run_briefing(time_of_day, correlation_id)
+        yield {"event": "briefing_result", **result}
+        yield {"event": "complete"}
+        return
 
     if action != "chat":
         yield {"event": "error", "message": f"Unknown action: {action}"}
@@ -50,7 +112,10 @@ async def invoke(payload, context):
         "correlation_id": correlation_id,
     }
 
-    thread_config = {"configurable": {"thread_id": session_id}}
+    thread_config = {
+        "configurable": {"thread_id": session_id},
+        "recursion_limit": 15,
+    }
     input_payload = {"messages": [HumanMessage(content=message)]}
 
     try:
@@ -73,14 +138,32 @@ async def invoke(payload, context):
                             }
                     # Tool result events
                     elif msg_type == "tool":
+                        tool_name = getattr(msg, "name", "")
                         content = getattr(msg, "content", "")
                         if not isinstance(content, str):
                             content = str(content)
                         yield {
                             "event": "tool_result",
-                            "tool": getattr(msg, "name", ""),
+                            "tool": tool_name,
                             "content": content[:1000],
                         }
+                        # Auto-emit news links from research results
+                        # so they always reach the frontend regardless
+                        # of orchestrator summarization.
+                        if tool_name == "research":
+                            links = re.findall(
+                                r"\[([^\]]+)\]\((https?://[^\)]+)\)",
+                                content,
+                            )
+                            if links:
+                                yield {
+                                    "event": "news_links",
+                                    "items": [
+                                        {"title": t, "url": u}
+                                        for t, u in links
+                                        if "원문 보기" not in t
+                                    ],
+                                }
                     # Assistant message (final or streaming segment)
                     elif msg_type == "ai":
                         content = getattr(msg, "content", "")

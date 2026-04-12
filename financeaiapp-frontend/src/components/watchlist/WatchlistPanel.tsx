@@ -115,6 +115,25 @@ function WatchlistPanel({
                 <div className="mt-1">
                   <Sparkline data={item.sparkline ?? []} up={isUp} />
                 </div>
+                {(item.high != null || item.volume != null) && (
+                  <div className="mt-1 text-[9px] text-muted opacity-0 group-hover:opacity-100 transition-opacity">
+                    {item.high != null && item.low != null && (
+                      <span>
+                        H {formatPrice({ ...item, price: item.high })} / L{" "}
+                        {formatPrice({ ...item, price: item.low })}
+                      </span>
+                    )}
+                    {item.volume != null && (
+                      <span className="ml-2">
+                        Vol {item.volume >= 1_000_000
+                          ? `${(item.volume / 1_000_000).toFixed(1)}M`
+                          : item.volume >= 1_000
+                          ? `${(item.volume / 1_000).toFixed(1)}K`
+                          : item.volume.toFixed(0)}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => onRemove(item.symbol)}

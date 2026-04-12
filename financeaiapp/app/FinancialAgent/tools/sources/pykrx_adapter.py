@@ -1,6 +1,6 @@
 """Korean stock adapter using pykrx (sync library wrapped with asyncio.to_thread)."""
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from pykrx import stock
 
@@ -14,10 +14,10 @@ log = get_logger("pykrx")
 
 def _fetch_ohlcv_sync(symbol: str) -> dict:
     """Sync pykrx call — run via asyncio.to_thread()."""
-    today = datetime.now().strftime("%Y%m%d")
-    # Look back a few days to handle weekends/holidays
-    lookback = (datetime.now()).strftime("%Y%m%d")
-    start = (datetime.now().replace(day=max(1, datetime.now().day - 7))).strftime("%Y%m%d")
+    today_dt = datetime.now()
+    today = today_dt.strftime("%Y%m%d")
+    # Look back 14 days to safely cover weekends/holidays
+    start = (today_dt - timedelta(days=14)).strftime("%Y%m%d")
     df = stock.get_market_ohlcv(start, today, symbol)
     if df is None or df.empty:
         raise ValueError(f"No pykrx data for {symbol}")
@@ -25,8 +25,39 @@ def _fetch_ohlcv_sync(symbol: str) -> dict:
     return {
         "close": float(row["종가"]),
         "open": float(row["시가"]),
+        "high": float(row["고가"]),
+        "low": float(row["저가"]),
         "volume": float(row["거래량"]),
     }
+
+
+def _fetch_history_sync(symbol: str, days: int) -> list[float]:
+    """Return last `days` close prices from pykrx OHLCV."""
+    today_dt = datetime.now()
+    today = today_dt.strftime("%Y%m%d")
+    # Pull a wider window to guarantee `days` business days
+    start = (today_dt - timedelta(days=days * 3)).strftime("%Y%m%d")
+    df = stock.get_market_ohlcv(start, today, symbol)
+    if df is None or df.empty:
+        return []
+    closes = [float(v) for v in df["종가"].tolist()][-days:]
+    return closes
+
+
+async def get_kr_history(symbol: str, days: int = 7) -> list[float]:
+    """Return daily close prices (oldest → newest) for a sparkline."""
+    key = cache_key("pykrx_hist", symbol, days)
+    cache = market_cache()
+    if key in cache:
+        return cache[key]
+
+    try:
+        closes = await asyncio.to_thread(_fetch_history_sync, symbol, days)
+        cache[key] = closes
+        return closes
+    except Exception as e:
+        log.warning("pykrx.history.failed", symbol=symbol, error=str(e))
+        return []
 
 
 async def get_kr_stock(symbol: str) -> MarketQuote:
@@ -54,6 +85,9 @@ async def get_kr_stock(symbol: str) -> MarketQuote:
             price=data["close"],
             currency="KRW",
             change_pct=change_pct,
+            open=data["open"],
+            high=data["high"],
+            low=data["low"],
             volume=data["volume"],
             timestamp=datetime.now(timezone.utc),
             source="pykrx",

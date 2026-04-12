@@ -52,17 +52,21 @@ def _build_briefing_query(
     )
 
 
-async def generate_briefing(request: Request) -> JSONResponse:
-    """POST /briefing — generate today's briefing for the given time_of_day."""
-    body = await request.json()
-    time_of_day: Literal["AM", "PM"] = body.get("time_of_day", "AM")
-    if time_of_day not in ("AM", "PM"):
-        return JSONResponse(
-            {"error": f"Invalid time_of_day: {time_of_day}"}, status_code=400
-        )
+async def run_briefing(
+    time_of_day: Literal["AM", "PM"],
+    correlation_id: str | None = None,
+) -> dict:
+    """Core briefing flow — reusable from both HTTP and entrypoint dispatch.
 
-    correlation_id = body.get("correlation_id") or f"briefing-{int(datetime.now().timestamp())}"
-    correlation_id_var.set(correlation_id)
+    Writes progress to DDB (pending → success/partial/failed) and returns a
+    result dict. Never raises — failures are serialized into the result.
+    """
+    if time_of_day not in ("AM", "PM"):
+        return {"status": "failed", "error": f"Invalid time_of_day: {time_of_day}"}
+
+    correlation_id_var.set(
+        correlation_id or f"briefing-{int(datetime.now().timestamp())}"
+    )
 
     date_str = _kst_date()
     sk = f"BRIEF#{date_str}-{time_of_day}"
@@ -101,10 +105,7 @@ async def generate_briefing(request: Request) -> JSONResponse:
                 },
             )
             log.warning("briefing.empty_watchlist")
-            return JSONResponse(
-                {"status": "failed", "reason": "empty_watchlist"},
-                status_code=200,
-            )
+            return {"status": "failed", "reason": "empty_watchlist"}
 
         # Stage 3: run research
         query = _build_briefing_query(time_of_day, tickers)
@@ -153,14 +154,12 @@ async def generate_briefing(request: Request) -> JSONResponse:
             duration_ms=duration_ms,
             tickers=len(tickers),
         )
-        return JSONResponse(
-            {
-                "status": status,
-                "briefing_sk": sk,
-                "duration_ms": duration_ms,
-                "tickers_covered": tickers,
-            }
-        )
+        return {
+            "status": status,
+            "briefing_sk": sk,
+            "duration_ms": duration_ms,
+            "tickers_covered": tickers,
+        }
 
     except Exception as e:
         log.exception("briefing.failed")
@@ -180,6 +179,14 @@ async def generate_briefing(request: Request) -> JSONResponse:
                 "errors": [str(e)],
             },
         )
-        return JSONResponse(
-            {"status": "failed", "error": str(e)}, status_code=500
-        )
+        return {"status": "failed", "error": str(e)}
+
+
+async def generate_briefing(request: Request) -> JSONResponse:
+    """POST /briefing — HTTP wrapper around run_briefing for local dev."""
+    body = await request.json()
+    time_of_day = body.get("time_of_day", "AM")
+    correlation_id = body.get("correlation_id")
+    result = await run_briefing(time_of_day, correlation_id)
+    status_code = 500 if result.get("status") == "failed" and "error" in result else 200
+    return JSONResponse(result, status_code=status_code)

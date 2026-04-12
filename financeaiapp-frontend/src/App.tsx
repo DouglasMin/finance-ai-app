@@ -3,6 +3,7 @@ import TerminalFrame from "./components/layout/TerminalFrame";
 import SessionsPanel from "./components/sessions/SessionsPanel";
 import WatchlistPanel from "./components/watchlist/WatchlistPanel";
 import ChatPanel from "./components/chat/ChatPanel";
+import { fetchWatchlist } from "./api/agentcore";
 import { useAgentStream } from "./hooks/useAgentStream";
 import type {
   BriefingSummary,
@@ -13,7 +14,6 @@ import type {
 } from "./types";
 
 const LS_SESSIONS_KEY = "finbot.sessions.v1";
-const LS_WATCHLIST_KEY = "finbot.watchlist.v1";
 
 function loadSessions(): Session[] {
   try {
@@ -29,50 +29,20 @@ function saveSessions(sessions: Session[]): void {
   localStorage.setItem(LS_SESSIONS_KEY, JSON.stringify(sessions));
 }
 
-function loadWatchlist(): WatchlistItem[] {
-  try {
-    const raw = localStorage.getItem(LS_WATCHLIST_KEY);
-    if (!raw)
-      return [
-        {
-          symbol: "BTC",
-          category: "crypto",
-          price: 72761.3,
-          currency: "USD",
-          changePct: 1.39,
-          sparkline: [70000, 70500, 71200, 71800, 72300, 72500, 72761],
-        },
-        {
-          symbol: "005930",
-          category: "kr_stock",
-          price: 73200,
-          currency: "KRW",
-          changePct: 0.41,
-          sparkline: [72500, 72600, 72800, 73000, 72900, 73100, 73200],
-        },
-        {
-          symbol: "USD/KRW",
-          category: "fx",
-          price: 1483.27,
-          currency: "KRW",
-          changePct: -0.12,
-          sparkline: [1485, 1486, 1484, 1485, 1483, 1484, 1483],
-        },
-      ];
-    return JSON.parse(raw) as WatchlistItem[];
-  } catch {
-    return [];
-  }
-}
-
-function saveWatchlist(items: WatchlistItem[]): void {
-  localStorage.setItem(LS_WATCHLIST_KEY, JSON.stringify(items));
-}
-
 function newSessionId(): string {
   return `sess-${Date.now().toString(36)}-${Math.random()
     .toString(36)
     .slice(2, 8)}`;
+}
+
+function formatNewsLinksMarkdown(
+  items: Array<{ title: string; url: string }>,
+): string {
+  if (!items.length) return "";
+  const cards = items
+    .map((item) => `> [${item.title}](${item.url})`)
+    .join("\n>\n");
+  return `\n\n---\n**📰 관련 뉴스 원문**\n${cards}`;
 }
 
 function extractAssistantMessageFromEvents(
@@ -81,16 +51,29 @@ function extractAssistantMessageFromEvents(
   const assistantEvents = events.filter((e) => e.type === "assistant");
   const toolCalls = events.filter((e) => e.type === "tool_call");
   const toolResults = events.filter((e) => e.type === "tool_result");
+  const newsLinksEvents = events.filter((e) => e.type === "news_links");
 
   if (!assistantEvents.length && !toolCalls.length) return null;
 
-  const content =
+  let content =
     assistantEvents.length > 0
       ? String(
           (assistantEvents[assistantEvents.length - 1].data as Record<string, unknown>)
             .content ?? "",
         )
       : "";
+
+  // Append news links from research tool results
+  if (newsLinksEvents.length > 0) {
+    const lastLinks = newsLinksEvents[newsLinksEvents.length - 1];
+    const items = (lastLinks.data as Record<string, unknown>).items as Array<{
+      title: string;
+      url: string;
+    }>;
+    if (items?.length) {
+      content += formatNewsLinksMarkdown(items);
+    }
+  }
 
   const finalToolCalls = toolCalls.map((tc) => {
     const data = tc.data as Record<string, unknown>;
@@ -125,7 +108,8 @@ function App() {
     const loaded = loadSessions();
     return loaded.length > 0 ? loaded[0].id : null;
   });
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>(loadWatchlist);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [isRefreshingWatchlist, setIsRefreshingWatchlist] = useState(false);
   const [briefings] = useState<BriefingSummary[]>([]);
 
   const { events, isStreaming, error, sendMessage, reset } = useAgentStream();
@@ -135,14 +119,27 @@ function App() {
     [sessions, activeSessionId],
   );
 
-  // Persist
+  // Persist sessions locally
   useEffect(() => {
     saveSessions(sessions);
   }, [sessions]);
 
+  // Load watchlist from backend (DDB) — single source of truth
+  const refreshWatchlist = useCallback(async () => {
+    setIsRefreshingWatchlist(true);
+    try {
+      const items = await fetchWatchlist();
+      setWatchlist(items);
+    } catch (err) {
+      console.error("watchlist fetch failed:", err);
+    } finally {
+      setIsRefreshingWatchlist(false);
+    }
+  }, []);
+
   useEffect(() => {
-    saveWatchlist(watchlist);
-  }, [watchlist]);
+    refreshWatchlist();
+  }, [refreshWatchlist]);
 
   const handleNewSession = useCallback(() => {
     const id = newSessionId();
@@ -198,6 +195,7 @@ function App() {
   );
 
   // When streaming completes, commit the assistant message to the session
+  // and refresh the watchlist in case the agent added/removed items.
   useEffect(() => {
     if (!isStreaming && events.length > 0 && activeSession) {
       const hasComplete = events.some((e) => e.type === "complete");
@@ -216,32 +214,60 @@ function App() {
             ),
           );
         }
+        const touchedWatchlist = events.some((e) => {
+          if (e.type !== "tool_call") return false;
+          const name = String(
+            (e.data as Record<string, unknown>).tool ?? "",
+          );
+          return (
+            name === "add_watchlist" ||
+            name === "remove_watchlist" ||
+            name === "list_watchlist"
+          );
+        });
+        if (touchedWatchlist) {
+          refreshWatchlist();
+        }
         reset();
       }
     }
-  }, [isStreaming, events, activeSession, reset]);
+  }, [isStreaming, events, activeSession, reset, refreshWatchlist]);
 
   const handleAddWatchlist = useCallback(() => {
     const symbol = prompt("종목 심볼을 입력하세요 (예: BTC, AAPL, 005930)");
     if (!symbol) return;
-    const s = symbol.trim().toUpperCase();
-    const category: WatchlistItem["category"] = s.includes("/")
-      ? "fx"
-      : /^\d{6}$/.test(s)
-      ? "kr_stock"
-      : ["BTC", "ETH", "SOL", "XRP", "DOGE"].includes(s)
-      ? "crypto"
-      : "us_stock";
-    setWatchlist((prev) => [...prev, { symbol: s, category }]);
-  }, []);
+    // Route the add through chat so the agent handles validation + DDB write,
+    // then refreshWatchlist() on stream complete picks up the new item.
+    if (activeSession) {
+      handleSend(`${symbol.trim().toUpperCase()} 관심종목에 추가해줘`);
+    }
+  }, [activeSession]);
 
-  const handleRemoveWatchlist = useCallback((symbol: string) => {
-    setWatchlist((prev) => prev.filter((i) => i.symbol !== symbol));
-  }, []);
+  const handleRemoveWatchlist = useCallback(
+    (symbol: string) => {
+      if (activeSession) {
+        handleSend(`${symbol} 관심종목에서 제거해줘`);
+      }
+    },
+    [activeSession],
+  );
 
-  const handleRefreshWatchlist = useCallback(() => {
-    // TODO: call research tool for each ticker once backend is deployed
-  }, []);
+  const handleDeleteSession = useCallback(
+    (id: string) => {
+      setSessions((prev) => prev.filter((s) => s.id !== id));
+      if (activeSessionId === id) {
+        setActiveSessionId(null);
+        reset();
+      }
+    },
+    [activeSessionId, reset],
+  );
+
+  const handleClearAllSessions = useCallback(() => {
+    setSessions([]);
+    setActiveSessionId(null);
+    reset();
+  }, [reset]);
 
   const handleOpenBriefing = useCallback((_b: BriefingSummary) => {
     // TODO: open briefing reader modal
@@ -256,14 +282,16 @@ function App() {
           briefings={briefings}
           onSelectSession={handleSelectSession}
           onNewSession={handleNewSession}
+          onDeleteSession={handleDeleteSession}
+          onClearAllSessions={handleClearAllSessions}
           onOpenBriefing={handleOpenBriefing}
         />
       }
       middle={
         <WatchlistPanel
           items={watchlist}
-          isRefreshing={false}
-          onRefresh={handleRefreshWatchlist}
+          isRefreshing={isRefreshingWatchlist}
+          onRefresh={refreshWatchlist}
           onAdd={handleAddWatchlist}
           onRemove={handleRemoveWatchlist}
         />

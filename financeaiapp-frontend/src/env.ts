@@ -9,7 +9,7 @@ export const isDev = import.meta.env.DEV;
 
 export const appPassword = (import.meta.env.VITE_APP_PASSWORD ?? "") as string;
 
-export const awsRegion = (import.meta.env.VITE_AWS_REGION ?? "us-east-1") as string;
+export const awsRegion = (import.meta.env.VITE_AWS_REGION ?? "ap-northeast-2") as string;
 
 export const identityPoolId = (import.meta.env.VITE_IDENTITY_POOL_ID ?? "") as string;
 

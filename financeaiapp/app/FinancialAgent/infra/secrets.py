@@ -1,30 +1,25 @@
-"""Secrets loader — env vars locally, Secrets Manager in cloud."""
+"""Secrets loader — always reads from AWS Secrets Manager.
+
+Single code path for local dev and cloud:
+- Local `agentcore dev` mounts ~/.aws read-only and forwards AWS_PROFILE,
+  so boto3 uses the developer's credentials to fetch the secret.
+- Deployed AgentCore Runtime uses its execution role (which must have
+  `secretsmanager:GetSecretValue` on the target secret ARN).
+
+No fallback, no env-var branch — one deterministic load path.
+"""
 import json
 import os
 from functools import lru_cache
 
 import boto3
 
-_ENV_KEYS = (
-    "OPENAI_API_KEY",
-    "ALPHA_VANTAGE_API_KEY",
-    "FINNHUB_API_KEY",
-    "NAVER_CLIENT_ID",
-    "NAVER_CLIENT_SECRET",
-    "LANGSMITH_API_KEY",
-)
-
 
 @lru_cache(maxsize=1)
 def load_secrets() -> dict:
-    """Load secrets from env vars locally, or Secrets Manager in cloud."""
-    # Local dev: prefer env vars if at least one key is present
-    if any(os.environ.get(k) for k in _ENV_KEYS):
-        return {k: os.environ.get(k, "") for k in _ENV_KEYS}
-
-    # Cloud: load from Secrets Manager
+    """Fetch all secrets from AWS Secrets Manager once per process."""
     secret_id = os.environ.get("SECRETS_ID", "financial-bot/api-keys")
-    region = os.environ.get("AWS_REGION", "us-east-1")
+    region = os.environ.get("AWS_REGION", "ap-northeast-2")
     client = boto3.client("secretsmanager", region_name=region)
     response = client.get_secret_value(SecretId=secret_id)
     return json.loads(response["SecretString"])
