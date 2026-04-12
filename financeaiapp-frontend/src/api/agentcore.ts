@@ -19,11 +19,12 @@ import {
 import type { WatchlistItem } from "../types";
 
 export interface InvokePayload {
-  action: "chat" | "briefing" | "list_watchlist";
+  action: "chat" | "briefing" | "list_watchlist" | "get_llm_provider" | "set_llm_provider";
   session_id?: string;
   message?: string;
   time_of_day?: "AM" | "PM";
   correlation_id?: string;
+  provider?: string;
 }
 
 interface WatchlistApiItem {

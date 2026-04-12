@@ -27,7 +27,7 @@ function LlmProviderSelect() {
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
-      const payload = { action: "get_llm_provider" } as InvokePayload;
+      const payload: InvokePayload = { action: "get_llm_provider" };
       for await (const chunk of streamInvocation(payload, controller.signal)) {
         const evt = parseSseEvent(chunk);
         if (evt?.event === "llm_provider" && typeof evt.provider === "string") {
@@ -45,10 +45,10 @@ function LlmProviderSelect() {
       setProvider(newProvider);
       try {
         const controller = new AbortController();
-        const payload = {
+        const payload: InvokePayload = {
           action: "set_llm_provider",
           provider: newProvider,
-        } as unknown as InvokePayload;
+        };
         for await (const chunk of streamInvocation(
           payload,
           controller.signal,
