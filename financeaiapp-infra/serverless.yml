@@ -94,6 +94,7 @@ resources:
       Properties:
         IdentityPoolName: financeaiapp_pool
         AllowUnauthenticatedIdentities: true
+        AllowClassicFlow: true
 
     CognitoGuestRole:
       Type: AWS::IAM::Role

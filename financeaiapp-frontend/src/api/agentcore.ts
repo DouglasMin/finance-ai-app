@@ -8,7 +8,15 @@ import {
   BedrockAgentCoreClient,
   InvokeAgentRuntimeCommand,
 } from "@aws-sdk/client-bedrock-agentcore";
-import { fromCognitoIdentityPool } from "@aws-sdk/credential-providers";
+import {
+  CognitoIdentityClient,
+  GetIdCommand,
+  GetOpenIdTokenCommand,
+} from "@aws-sdk/client-cognito-identity";
+import {
+  STSClient,
+  AssumeRoleWithWebIdentityCommand,
+} from "@aws-sdk/client-sts";
 
 import {
   agentCoreRuntimeArn,
@@ -57,18 +65,62 @@ function parseSseFrames(chunk: string): Array<Record<string, unknown>> {
   return events;
 }
 
-let _client: BedrockAgentCoreClient | null = null;
+// Basic (classic) auth flow — avoids Cognito enhanced flow's session
+// policy which blocks bedrock-agentcore:InvokeAgentRuntime.
+// Flow: GetId → GetOpenIdToken → STS AssumeRoleWithWebIdentity
+const GUEST_ROLE_ARN = "arn:aws:iam::612529367436:role/financeaiapp-guest-role";
 
-function getClient(): BedrockAgentCoreClient {
-  if (_client) return _client;
-  _client = new BedrockAgentCoreClient({
+let _cachedCreds: {
+  accessKeyId: string;
+  secretAccessKey: string;
+  sessionToken: string;
+  expiration: Date;
+} | null = null;
+
+async function getBasicFlowCredentials() {
+  // Reuse cached credentials if not expired (5 min buffer)
+  if (_cachedCreds && _cachedCreds.expiration.getTime() - Date.now() > 300_000) {
+    return _cachedCreds;
+  }
+
+  const cognitoClient = new CognitoIdentityClient({ region: awsRegion });
+
+  const { IdentityId } = await cognitoClient.send(
+    new GetIdCommand({ IdentityPoolId: identityPoolId })
+  );
+
+  const { Token } = await cognitoClient.send(
+    new GetOpenIdTokenCommand({ IdentityId })
+  );
+
+  const stsClient = new STSClient({ region: awsRegion });
+  const { Credentials } = await stsClient.send(
+    new AssumeRoleWithWebIdentityCommand({
+      RoleArn: GUEST_ROLE_ARN,
+      RoleSessionName: "financeaiapp-guest",
+      WebIdentityToken: Token!,
+    })
+  );
+
+  _cachedCreds = {
+    accessKeyId: Credentials!.AccessKeyId!,
+    secretAccessKey: Credentials!.SecretAccessKey!,
+    sessionToken: Credentials!.SessionToken!,
+    expiration: Credentials!.Expiration!,
+  };
+  return _cachedCreds;
+}
+
+async function getClient(): Promise<BedrockAgentCoreClient> {
+  const creds = await getBasicFlowCredentials();
+  return new BedrockAgentCoreClient({
     region: awsRegion,
-    credentials: fromCognitoIdentityPool({
-      clientConfig: { region: awsRegion },
-      identityPoolId,
-    }),
+    credentials: {
+      accessKeyId: creds.accessKeyId,
+      secretAccessKey: creds.secretAccessKey,
+      sessionToken: creds.sessionToken,
+    },
   });
-  return _client;
 }
 
 /**
@@ -101,8 +153,8 @@ export async function* streamInvocation(
     return;
   }
 
-  // Prod: AWS SDK with Cognito creds
-  const client = getClient();
+  // Prod: AWS SDK with Cognito basic flow creds
+  const client = await getClient();
   const command = new InvokeAgentRuntimeCommand({
     agentRuntimeArn: agentCoreRuntimeArn,
     payload: new TextEncoder().encode(JSON.stringify(payload)),

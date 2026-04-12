@@ -156,7 +156,7 @@
               "Properties": {
                 "Code": {
                   "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-                  "S3Key": "serverless/financeaiapp-infra/prod/1776029092213-2026-04-12T21:24:52.213Z/financeaiapp-infra.zip"
+                  "S3Key": "serverless/financeaiapp-infra/prod/1776029999225-2026-04-12T21:39:59.225Z/financeaiapp-infra.zip"
                 },
                 "Handler": "src/briefing-proxy.handler",
                 "Runtime": "nodejs22.x",
@@ -181,14 +181,14 @@
                 "BriefingProxyLogGroup"
               ]
             },
-            "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc": {
+            "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M": {
               "Type": "AWS::Lambda::Version",
               "DeletionPolicy": "Retain",
               "Properties": {
                 "FunctionName": {
                   "Ref": "BriefingProxyLambdaFunction"
                 },
-                "CodeSha256": "uQFhGRQrqP+gxsIsDomAtCrB2P2Jim0yXhVgR8WL+d8=",
+                "CodeSha256": "N43T3BOBcUW2vaa0wjRO160P6WkdRS1bOVMSb6IQOgs=",
                 "Description": "EventBridge → AgentCore briefing invocation proxy"
               }
             },
@@ -299,7 +299,8 @@
               "Type": "AWS::Cognito::IdentityPool",
               "Properties": {
                 "IdentityPoolName": "financeaiapp_pool",
-                "AllowUnauthenticatedIdentities": true
+                "AllowUnauthenticatedIdentities": true,
+                "AllowClassicFlow": true
               }
             },
             "CognitoGuestRole": {
@@ -589,7 +590,7 @@
             "BriefingProxyLambdaFunctionQualifiedArn": {
               "Description": "Current Lambda function version",
               "Value": {
-                "Ref": "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc"
+                "Ref": "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M"
               },
               "Export": {
                 "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
@@ -675,7 +676,7 @@
           "memory": 256,
           "runtime": "nodejs22.x",
           "vpc": {},
-          "versionLogicalId": "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc"
+          "versionLogicalId": "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M"
         }
       },
       "resources": {
@@ -711,7 +712,8 @@
             "Type": "AWS::Cognito::IdentityPool",
             "Properties": {
               "IdentityPoolName": "financeaiapp_pool",
-              "AllowUnauthenticatedIdentities": true
+              "AllowUnauthenticatedIdentities": true,
+              "AllowClassicFlow": true
             }
           },
           "CognitoGuestRole": {
@@ -1178,7 +1180,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-                "S3Key": "serverless/financeaiapp-infra/prod/1776029092213-2026-04-12T21:24:52.213Z/financeaiapp-infra.zip"
+                "S3Key": "serverless/financeaiapp-infra/prod/1776029999225-2026-04-12T21:39:59.225Z/financeaiapp-infra.zip"
               },
               "Handler": "src/briefing-proxy.handler",
               "Runtime": "nodejs22.x",
@@ -1203,14 +1205,14 @@
               "BriefingProxyLogGroup"
             ]
           },
-          "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc": {
+          "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "BriefingProxyLambdaFunction"
               },
-              "CodeSha256": "uQFhGRQrqP+gxsIsDomAtCrB2P2Jim0yXhVgR8WL+d8=",
+              "CodeSha256": "N43T3BOBcUW2vaa0wjRO160P6WkdRS1bOVMSb6IQOgs=",
               "Description": "EventBridge → AgentCore briefing invocation proxy"
             }
           },
@@ -1321,7 +1323,8 @@
             "Type": "AWS::Cognito::IdentityPool",
             "Properties": {
               "IdentityPoolName": "financeaiapp_pool",
-              "AllowUnauthenticatedIdentities": true
+              "AllowUnauthenticatedIdentities": true,
+              "AllowClassicFlow": true
             }
           },
           "CognitoGuestRole": {
@@ -1611,7 +1614,7 @@
           "BriefingProxyLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc"
+              "Ref": "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M"
             },
             "Export": {
               "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
@@ -1663,7 +1666,7 @@
       "serviceProvider": null,
       "instanceParameters": null
     },
-    "serviceRawFile": "# =============================================================================\n# FINANCEAIAPP Infrastructure — Serverless Framework v4\n# =============================================================================\n# Manages: Cognito, S3+CloudFront, Briefing Lambda+EventBridge,\n#          CloudWatch Alarms+SNS. All in Seoul (ap-northeast-2).\n#\n# Deploy:  cd financeaiapp-infra && npm install && serverless deploy\n# Remove:  serverless remove\n# =============================================================================\n\nservice: financeaiapp-infra\nframeworkVersion: \"4\"\n\nprovider:\n  name: aws\n  region: ap-northeast-2\n  runtime: nodejs22.x\n  stage: ${opt:stage, 'prod'}\n  environment:\n    AGENTCORE_RUNTIME_ARN: ${ssm:/financeaiapp/agentcore-runtime-arn}\n  iam:\n    role:\n      statements:\n        - Effect: Allow\n          Action:\n            - bedrock-agentcore:InvokeAgentRuntime\n          Resource:\n            - ${ssm:/financeaiapp/agentcore-runtime-arn}\n        - Effect: Allow\n          Action:\n            - sqs:SendMessage\n          Resource:\n            - !GetAtt BriefingDLQ.Arn\n\nbuild:\n  esbuild:\n    bundle: true\n    minify: true\n    target: node22\n\n# =============================================================================\n# Lambda Functions\n# =============================================================================\nfunctions:\n  briefingProxy:\n    handler: src/briefing-proxy.handler\n    name: financeaiapp-briefing-proxy\n    description: \"EventBridge → AgentCore briefing invocation proxy\"\n    timeout: 120\n    memorySize: 256\n    events:\n      # 8:00 AM KST = 23:00 UTC (previous day)\n      - schedule:\n          rate: cron(0 23 * * ? *)\n          input:\n            time_of_day: \"AM\"\n      # 6:00 PM KST = 09:00 UTC\n      - schedule:\n          rate: cron(0 9 * * ? *)\n          input:\n            time_of_day: \"PM\"\n\n# =============================================================================\n# CloudFormation Resources\n# =============================================================================\nresources:\n  Resources:\n\n    # =========================================================================\n    # SQS — Briefing DLQ\n    # =========================================================================\n    BriefingDLQ:\n      Type: AWS::SQS::Queue\n      Properties:\n        QueueName: financeaiapp-briefing-dlq\n        MessageRetentionPeriod: 1209600  # 14 days\n\n    # Connect Lambda → DLQ via EventInvokeConfig (CFN native, not SLS syntax)\n    BriefingProxyEventInvokeConfig:\n      Type: AWS::Lambda::EventInvokeConfig\n      Properties:\n        FunctionName: financeaiapp-briefing-proxy\n        Qualifier: $LATEST\n        DestinationConfig:\n          OnFailure:\n            Destination: !GetAtt BriefingDLQ.Arn\n      DependsOn: BriefingProxyLambdaFunction\n\n    # =========================================================================\n    # Cognito Identity Pool (Guest/Unauthenticated)\n    # =========================================================================\n    CognitoIdentityPool:\n      Type: AWS::Cognito::IdentityPool\n      Properties:\n        IdentityPoolName: financeaiapp_pool\n        AllowUnauthenticatedIdentities: true\n\n    CognitoGuestRole:\n      Type: AWS::IAM::Role\n      Properties:\n        RoleName: financeaiapp-guest-role\n        AssumeRolePolicyDocument:\n          Version: \"2012-10-17\"\n          Statement:\n            - Effect: Allow\n              Principal:\n                Federated: cognito-identity.amazonaws.com\n              Action: sts:AssumeRoleWithWebIdentity\n              Condition:\n                StringEquals:\n                  \"cognito-identity.amazonaws.com:aud\": !Ref CognitoIdentityPool\n                \"ForAnyValue:StringLike\":\n                  \"cognito-identity.amazonaws.com:amr\": unauthenticated\n        Policies:\n          - PolicyName: financeaiapp-guest-agentcore\n            PolicyDocument:\n              Version: \"2012-10-17\"\n              Statement:\n                - Effect: Allow\n                  Action:\n                    - bedrock-agentcore:InvokeAgentRuntime\n                  Resource:\n                    - ${ssm:/financeaiapp/agentcore-runtime-arn}\n\n    CognitoRoleAttachment:\n      Type: AWS::Cognito::IdentityPoolRoleAttachment\n      Properties:\n        IdentityPoolId: !Ref CognitoIdentityPool\n        Roles:\n          unauthenticated: !GetAtt CognitoGuestRole.Arn\n\n    # =========================================================================\n    # S3 — Frontend Hosting\n    # =========================================================================\n    FrontendBucket:\n      Type: AWS::S3::Bucket\n      Properties:\n        BucketName: financeaiapp-frontend-${aws:accountId}\n        PublicAccessBlockConfiguration:\n          BlockPublicAcls: true\n          BlockPublicPolicy: true\n          IgnorePublicAcls: true\n          RestrictPublicBuckets: true\n\n    FrontendBucketPolicy:\n      Type: AWS::S3::BucketPolicy\n      Properties:\n        Bucket: !Ref FrontendBucket\n        PolicyDocument:\n          Version: \"2012-10-17\"\n          Statement:\n            - Sid: AllowCloudFrontOAC\n              Effect: Allow\n              Principal:\n                Service: cloudfront.amazonaws.com\n              Action: s3:GetObject\n              Resource: !Sub \"${FrontendBucket.Arn}/*\"\n              Condition:\n                StringEquals:\n                  \"AWS:SourceArn\": !Sub \"arn:aws:cloudfront::${aws:accountId}:distribution/${CloudFrontDistribution}\"\n\n    # =========================================================================\n    # CloudFront — CDN\n    # =========================================================================\n    CloudFrontOAC:\n      Type: AWS::CloudFront::OriginAccessControl\n      Properties:\n        OriginAccessControlConfig:\n          Name: financeaiapp-oac\n          OriginAccessControlOriginType: s3\n          SigningBehavior: always\n          SigningProtocol: sigv4\n\n    CloudFrontDistribution:\n      Type: AWS::CloudFront::Distribution\n      Properties:\n        DistributionConfig:\n          Enabled: true\n          Comment: \"financeaiapp frontend\"\n          DefaultRootObject: index.html\n          Origins:\n            - Id: S3Origin\n              DomainName: !GetAtt FrontendBucket.RegionalDomainName\n              OriginAccessControlId: !GetAtt CloudFrontOAC.Id\n              S3OriginConfig:\n                OriginAccessIdentity: \"\"\n          DefaultCacheBehavior:\n            TargetOriginId: S3Origin\n            ViewerProtocolPolicy: redirect-to-https\n            AllowedMethods: [GET, HEAD]\n            CachedMethods: [GET, HEAD]\n            Compress: true\n            ForwardedValues:\n              QueryString: false\n              Cookies:\n                Forward: none\n          CustomErrorResponses:\n            # SPA fallback: 404/403 → index.html\n            - ErrorCode: 404\n              ResponseCode: 200\n              ResponsePagePath: /index.html\n              ErrorCachingMinTTL: 0\n            - ErrorCode: 403\n              ResponseCode: 200\n              ResponsePagePath: /index.html\n              ErrorCachingMinTTL: 0\n          PriceClass: PriceClass_200\n\n    # =========================================================================\n    # SNS — Alert Topic\n    # =========================================================================\n    AlertTopic:\n      Type: AWS::SNS::Topic\n      Properties:\n        TopicName: financeaiapp-alerts\n        DisplayName: \"finance-ai-app alerts\"\n\n    AlertEmailSubscription:\n      Type: AWS::SNS::Subscription\n      Properties:\n        TopicArn: !Ref AlertTopic\n        Protocol: email\n        Endpoint: dongik.dev73@gmail.com\n\n    # =========================================================================\n    # CloudWatch Alarms\n    # =========================================================================\n    DailyCostAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-daily-cost\n        AlarmDescription: \"Daily AWS cost > $5\"\n        Namespace: AWS/Billing\n        MetricName: EstimatedCharges\n        Dimensions:\n          - Name: Currency\n            Value: USD\n        Statistic: Maximum\n        Period: 21600  # 6 hours\n        EvaluationPeriods: 1\n        Threshold: 5\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    BriefingLambdaErrorsAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-lambda-errors\n        AlarmDescription: \"Briefing Lambda errors in last 15 min\"\n        Namespace: AWS/Lambda\n        MetricName: Errors\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-briefing-proxy\n        Statistic: Sum\n        Period: 900  # 15 min\n        EvaluationPeriods: 1\n        Threshold: 1\n        ComparisonOperator: GreaterThanOrEqualToThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    BriefingDLQDepthAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-dlq-depth\n        AlarmDescription: \"Briefing DLQ has messages — failed invocations\"\n        Namespace: AWS/SQS\n        MetricName: ApproximateNumberOfMessagesVisible\n        Dimensions:\n          - Name: QueueName\n            Value: financeaiapp-briefing-dlq\n        Statistic: Maximum\n        Period: 300  # 5 min\n        EvaluationPeriods: 1\n        Threshold: 0\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n  # ===========================================================================\n  # Outputs — for frontend env vars and GitHub Actions\n  # ===========================================================================\n  Outputs:\n    IdentityPoolId:\n      Description: Cognito Identity Pool ID (VITE_IDENTITY_POOL_ID)\n      Value: !Ref CognitoIdentityPool\n\n    FrontendBucketName:\n      Description: S3 bucket for frontend deployment\n      Value: !Ref FrontendBucket\n\n    CloudFrontDistributionId:\n      Description: CloudFront distribution ID (for cache invalidation)\n      Value: !Ref CloudFrontDistribution\n\n    CloudFrontDomain:\n      Description: CloudFront domain (public URL)\n      Value: !GetAtt CloudFrontDistribution.DomainName\n\n    AlertTopicArn:\n      Description: SNS topic for alerts\n      Value: !Ref AlertTopic\n",
+    "serviceRawFile": "# =============================================================================\n# FINANCEAIAPP Infrastructure — Serverless Framework v4\n# =============================================================================\n# Manages: Cognito, S3+CloudFront, Briefing Lambda+EventBridge,\n#          CloudWatch Alarms+SNS. All in Seoul (ap-northeast-2).\n#\n# Deploy:  cd financeaiapp-infra && npm install && serverless deploy\n# Remove:  serverless remove\n# =============================================================================\n\nservice: financeaiapp-infra\nframeworkVersion: \"4\"\n\nprovider:\n  name: aws\n  region: ap-northeast-2\n  runtime: nodejs22.x\n  stage: ${opt:stage, 'prod'}\n  environment:\n    AGENTCORE_RUNTIME_ARN: ${ssm:/financeaiapp/agentcore-runtime-arn}\n  iam:\n    role:\n      statements:\n        - Effect: Allow\n          Action:\n            - bedrock-agentcore:InvokeAgentRuntime\n          Resource:\n            - ${ssm:/financeaiapp/agentcore-runtime-arn}\n        - Effect: Allow\n          Action:\n            - sqs:SendMessage\n          Resource:\n            - !GetAtt BriefingDLQ.Arn\n\nbuild:\n  esbuild:\n    bundle: true\n    minify: true\n    target: node22\n\n# =============================================================================\n# Lambda Functions\n# =============================================================================\nfunctions:\n  briefingProxy:\n    handler: src/briefing-proxy.handler\n    name: financeaiapp-briefing-proxy\n    description: \"EventBridge → AgentCore briefing invocation proxy\"\n    timeout: 120\n    memorySize: 256\n    events:\n      # 8:00 AM KST = 23:00 UTC (previous day)\n      - schedule:\n          rate: cron(0 23 * * ? *)\n          input:\n            time_of_day: \"AM\"\n      # 6:00 PM KST = 09:00 UTC\n      - schedule:\n          rate: cron(0 9 * * ? *)\n          input:\n            time_of_day: \"PM\"\n\n# =============================================================================\n# CloudFormation Resources\n# =============================================================================\nresources:\n  Resources:\n\n    # =========================================================================\n    # SQS — Briefing DLQ\n    # =========================================================================\n    BriefingDLQ:\n      Type: AWS::SQS::Queue\n      Properties:\n        QueueName: financeaiapp-briefing-dlq\n        MessageRetentionPeriod: 1209600  # 14 days\n\n    # Connect Lambda → DLQ via EventInvokeConfig (CFN native, not SLS syntax)\n    BriefingProxyEventInvokeConfig:\n      Type: AWS::Lambda::EventInvokeConfig\n      Properties:\n        FunctionName: financeaiapp-briefing-proxy\n        Qualifier: $LATEST\n        DestinationConfig:\n          OnFailure:\n            Destination: !GetAtt BriefingDLQ.Arn\n      DependsOn: BriefingProxyLambdaFunction\n\n    # =========================================================================\n    # Cognito Identity Pool (Guest/Unauthenticated)\n    # =========================================================================\n    CognitoIdentityPool:\n      Type: AWS::Cognito::IdentityPool\n      Properties:\n        IdentityPoolName: financeaiapp_pool\n        AllowUnauthenticatedIdentities: true\n        AllowClassicFlow: true\n\n    CognitoGuestRole:\n      Type: AWS::IAM::Role\n      Properties:\n        RoleName: financeaiapp-guest-role\n        AssumeRolePolicyDocument:\n          Version: \"2012-10-17\"\n          Statement:\n            - Effect: Allow\n              Principal:\n                Federated: cognito-identity.amazonaws.com\n              Action: sts:AssumeRoleWithWebIdentity\n              Condition:\n                StringEquals:\n                  \"cognito-identity.amazonaws.com:aud\": !Ref CognitoIdentityPool\n                \"ForAnyValue:StringLike\":\n                  \"cognito-identity.amazonaws.com:amr\": unauthenticated\n        Policies:\n          - PolicyName: financeaiapp-guest-agentcore\n            PolicyDocument:\n              Version: \"2012-10-17\"\n              Statement:\n                - Effect: Allow\n                  Action:\n                    - bedrock-agentcore:InvokeAgentRuntime\n                  Resource:\n                    - ${ssm:/financeaiapp/agentcore-runtime-arn}\n\n    CognitoRoleAttachment:\n      Type: AWS::Cognito::IdentityPoolRoleAttachment\n      Properties:\n        IdentityPoolId: !Ref CognitoIdentityPool\n        Roles:\n          unauthenticated: !GetAtt CognitoGuestRole.Arn\n\n    # =========================================================================\n    # S3 — Frontend Hosting\n    # =========================================================================\n    FrontendBucket:\n      Type: AWS::S3::Bucket\n      Properties:\n        BucketName: financeaiapp-frontend-${aws:accountId}\n        PublicAccessBlockConfiguration:\n          BlockPublicAcls: true\n          BlockPublicPolicy: true\n          IgnorePublicAcls: true\n          RestrictPublicBuckets: true\n\n    FrontendBucketPolicy:\n      Type: AWS::S3::BucketPolicy\n      Properties:\n        Bucket: !Ref FrontendBucket\n        PolicyDocument:\n          Version: \"2012-10-17\"\n          Statement:\n            - Sid: AllowCloudFrontOAC\n              Effect: Allow\n              Principal:\n                Service: cloudfront.amazonaws.com\n              Action: s3:GetObject\n              Resource: !Sub \"${FrontendBucket.Arn}/*\"\n              Condition:\n                StringEquals:\n                  \"AWS:SourceArn\": !Sub \"arn:aws:cloudfront::${aws:accountId}:distribution/${CloudFrontDistribution}\"\n\n    # =========================================================================\n    # CloudFront — CDN\n    # =========================================================================\n    CloudFrontOAC:\n      Type: AWS::CloudFront::OriginAccessControl\n      Properties:\n        OriginAccessControlConfig:\n          Name: financeaiapp-oac\n          OriginAccessControlOriginType: s3\n          SigningBehavior: always\n          SigningProtocol: sigv4\n\n    CloudFrontDistribution:\n      Type: AWS::CloudFront::Distribution\n      Properties:\n        DistributionConfig:\n          Enabled: true\n          Comment: \"financeaiapp frontend\"\n          DefaultRootObject: index.html\n          Origins:\n            - Id: S3Origin\n              DomainName: !GetAtt FrontendBucket.RegionalDomainName\n              OriginAccessControlId: !GetAtt CloudFrontOAC.Id\n              S3OriginConfig:\n                OriginAccessIdentity: \"\"\n          DefaultCacheBehavior:\n            TargetOriginId: S3Origin\n            ViewerProtocolPolicy: redirect-to-https\n            AllowedMethods: [GET, HEAD]\n            CachedMethods: [GET, HEAD]\n            Compress: true\n            ForwardedValues:\n              QueryString: false\n              Cookies:\n                Forward: none\n          CustomErrorResponses:\n            # SPA fallback: 404/403 → index.html\n            - ErrorCode: 404\n              ResponseCode: 200\n              ResponsePagePath: /index.html\n              ErrorCachingMinTTL: 0\n            - ErrorCode: 403\n              ResponseCode: 200\n              ResponsePagePath: /index.html\n              ErrorCachingMinTTL: 0\n          PriceClass: PriceClass_200\n\n    # =========================================================================\n    # SNS — Alert Topic\n    # =========================================================================\n    AlertTopic:\n      Type: AWS::SNS::Topic\n      Properties:\n        TopicName: financeaiapp-alerts\n        DisplayName: \"finance-ai-app alerts\"\n\n    AlertEmailSubscription:\n      Type: AWS::SNS::Subscription\n      Properties:\n        TopicArn: !Ref AlertTopic\n        Protocol: email\n        Endpoint: dongik.dev73@gmail.com\n\n    # =========================================================================\n    # CloudWatch Alarms\n    # =========================================================================\n    DailyCostAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-daily-cost\n        AlarmDescription: \"Daily AWS cost > $5\"\n        Namespace: AWS/Billing\n        MetricName: EstimatedCharges\n        Dimensions:\n          - Name: Currency\n            Value: USD\n        Statistic: Maximum\n        Period: 21600  # 6 hours\n        EvaluationPeriods: 1\n        Threshold: 5\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    BriefingLambdaErrorsAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-lambda-errors\n        AlarmDescription: \"Briefing Lambda errors in last 15 min\"\n        Namespace: AWS/Lambda\n        MetricName: Errors\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-briefing-proxy\n        Statistic: Sum\n        Period: 900  # 15 min\n        EvaluationPeriods: 1\n        Threshold: 1\n        ComparisonOperator: GreaterThanOrEqualToThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    BriefingDLQDepthAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-dlq-depth\n        AlarmDescription: \"Briefing DLQ has messages — failed invocations\"\n        Namespace: AWS/SQS\n        MetricName: ApproximateNumberOfMessagesVisible\n        Dimensions:\n          - Name: QueueName\n            Value: financeaiapp-briefing-dlq\n        Statistic: Maximum\n        Period: 300  # 5 min\n        EvaluationPeriods: 1\n        Threshold: 0\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n  # ===========================================================================\n  # Outputs — for frontend env vars and GitHub Actions\n  # ===========================================================================\n  Outputs:\n    IdentityPoolId:\n      Description: Cognito Identity Pool ID (VITE_IDENTITY_POOL_ID)\n      Value: !Ref CognitoIdentityPool\n\n    FrontendBucketName:\n      Description: S3 bucket for frontend deployment\n      Value: !Ref FrontendBucket\n\n    CloudFrontDistributionId:\n      Description: CloudFront distribution ID (for cache invalidation)\n      Value: !Ref CloudFrontDistribution\n\n    CloudFrontDomain:\n      Description: CloudFront domain (public URL)\n      Value: !GetAtt CloudFrontDistribution.DomainName\n\n    AlertTopicArn:\n      Description: SNS topic for alerts\n      Value: !Ref AlertTopic\n",
     "command": [
       "deploy"
     ],
@@ -1676,8 +1679,8 @@
     "serviceProviderAwsCfStackName": "financeaiapp-infra-prod",
     "serviceProviderAwsCfStackId": "arn:aws:cloudformation:ap-northeast-2:612529367436:stack/financeaiapp-infra-prod/d13d6170-36b4-11f1-9cf2-0a03b6be8697",
     "serviceProviderAwsCfStackCreated": "2026-04-12T21:16:06.422Z",
-    "serviceProviderAwsCfStackUpdated": null,
-    "serviceProviderAwsCfStackStatus": "CREATE_COMPLETE",
+    "serviceProviderAwsCfStackUpdated": "2026-04-12T21:24:55.911Z",
+    "serviceProviderAwsCfStackStatus": "UPDATE_COMPLETE",
     "serviceProviderAwsCfStackOutputs": [
       {
         "OutputKey": "FrontendBucketName",
@@ -1701,7 +1704,7 @@
       },
       {
         "OutputKey": "BriefingProxyLambdaFunctionQualifiedArn",
-        "OutputValue": "arn:aws:lambda:ap-northeast-2:612529367436:function:financeaiapp-briefing-proxy:1",
+        "OutputValue": "arn:aws:lambda:ap-northeast-2:612529367436:function:financeaiapp-briefing-proxy:2",
         "Description": "Current Lambda function version",
         "ExportName": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
       },
@@ -1830,7 +1833,7 @@
           "Properties": {
             "Code": {
               "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-              "S3Key": "serverless/financeaiapp-infra/prod/1776029092213-2026-04-12T21:24:52.213Z/financeaiapp-infra.zip"
+              "S3Key": "serverless/financeaiapp-infra/prod/1776029999225-2026-04-12T21:39:59.225Z/financeaiapp-infra.zip"
             },
             "Handler": "src/briefing-proxy.handler",
             "Runtime": "nodejs22.x",
@@ -1855,14 +1858,14 @@
             "BriefingProxyLogGroup"
           ]
         },
-        "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc": {
+        "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M": {
           "Type": "AWS::Lambda::Version",
           "DeletionPolicy": "Retain",
           "Properties": {
             "FunctionName": {
               "Ref": "BriefingProxyLambdaFunction"
             },
-            "CodeSha256": "uQFhGRQrqP+gxsIsDomAtCrB2P2Jim0yXhVgR8WL+d8=",
+            "CodeSha256": "N43T3BOBcUW2vaa0wjRO160P6WkdRS1bOVMSb6IQOgs=",
             "Description": "EventBridge → AgentCore briefing invocation proxy"
           }
         },
@@ -1973,7 +1976,8 @@
           "Type": "AWS::Cognito::IdentityPool",
           "Properties": {
             "IdentityPoolName": "financeaiapp_pool",
-            "AllowUnauthenticatedIdentities": true
+            "AllowUnauthenticatedIdentities": true,
+            "AllowClassicFlow": true
           }
         },
         "CognitoGuestRole": {
@@ -2263,7 +2267,7 @@
         "BriefingProxyLambdaFunctionQualifiedArn": {
           "Description": "Current Lambda function version",
           "Value": {
-            "Ref": "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc"
+            "Ref": "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M"
           },
           "Export": {
             "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"

@@ -139,7 +139,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-                "S3Key": "serverless/financeaiapp-infra/prod/1776029092213-2026-04-12T21:24:52.213Z/financeaiapp-infra.zip"
+                "S3Key": "serverless/financeaiapp-infra/prod/1776029999225-2026-04-12T21:39:59.225Z/financeaiapp-infra.zip"
               },
               "Handler": "src/briefing-proxy.handler",
               "Runtime": "nodejs22.x",
@@ -164,14 +164,14 @@
               "BriefingProxyLogGroup"
             ]
           },
-          "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc": {
+          "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "BriefingProxyLambdaFunction"
               },
-              "CodeSha256": "uQFhGRQrqP+gxsIsDomAtCrB2P2Jim0yXhVgR8WL+d8=",
+              "CodeSha256": "N43T3BOBcUW2vaa0wjRO160P6WkdRS1bOVMSb6IQOgs=",
               "Description": "EventBridge → AgentCore briefing invocation proxy"
             }
           },
@@ -282,7 +282,8 @@
             "Type": "AWS::Cognito::IdentityPool",
             "Properties": {
               "IdentityPoolName": "financeaiapp_pool",
-              "AllowUnauthenticatedIdentities": true
+              "AllowUnauthenticatedIdentities": true,
+              "AllowClassicFlow": true
             }
           },
           "CognitoGuestRole": {
@@ -572,7 +573,7 @@
           "BriefingProxyLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc"
+              "Ref": "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M"
             },
             "Export": {
               "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
@@ -652,7 +653,7 @@
         "memory": 256,
         "runtime": "nodejs22.x",
         "vpc": {},
-        "versionLogicalId": "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc"
+        "versionLogicalId": "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M"
       }
     },
     "resources": {
@@ -688,7 +689,8 @@
           "Type": "AWS::Cognito::IdentityPool",
           "Properties": {
             "IdentityPoolName": "financeaiapp_pool",
-            "AllowUnauthenticatedIdentities": true
+            "AllowUnauthenticatedIdentities": true,
+            "AllowClassicFlow": true
           }
         },
         "CognitoGuestRole": {
@@ -1034,7 +1036,7 @@
     "layers": {}
   },
   "package": {
-    "artifactDirectoryName": "serverless/financeaiapp-infra/prod/1776029092213-2026-04-12T21:24:52.213Z",
+    "artifactDirectoryName": "serverless/financeaiapp-infra/prod/1776029999225-2026-04-12T21:39:59.225Z",
     "artifact": "financeaiapp-infra.zip"
   }
 }
