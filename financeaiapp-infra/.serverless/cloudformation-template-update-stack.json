@@ -1,0 +1,588 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The AWS CloudFormation template for this Serverless application",
+  "Resources": {
+    "BriefingProxyLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/financeaiapp-briefing-proxy"
+      }
+    },
+    "IamRoleLambdaExecution": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": {
+              "Fn::Join": [
+                "-",
+                [
+                  "financeaiapp-infra",
+                  "prod",
+                  "lambda"
+                ]
+              ]
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:CreateLogGroup",
+                    "logs:TagResource"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-briefing-proxy:*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-briefing-proxy:*:*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock-agentcore:InvokeAgentRuntime"
+                  ],
+                  "Resource": "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki"
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "sqs:SendMessage"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::GetAtt": [
+                        "BriefingDLQ",
+                        "Arn"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "Path": "/",
+        "RoleName": {
+          "Fn::Join": [
+            "-",
+            [
+              "financeaiapp-infra",
+              "prod",
+              {
+                "Ref": "AWS::Region"
+              },
+              "lambdaRole"
+            ]
+          ]
+        }
+      }
+    },
+    "BriefingProxyLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
+          "S3Key": "serverless/financeaiapp-infra/prod/1776029092213-2026-04-12T21:24:52.213Z/financeaiapp-infra.zip"
+        },
+        "Handler": "src/briefing-proxy.handler",
+        "Runtime": "nodejs22.x",
+        "FunctionName": "financeaiapp-briefing-proxy",
+        "MemorySize": 256,
+        "Timeout": 120,
+        "Description": "EventBridge → AgentCore briefing invocation proxy",
+        "Environment": {
+          "Variables": {
+            "AGENTCORE_RUNTIME_ARN": "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki",
+            "NODE_OPTIONS": "--enable-source-maps"
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "BriefingProxyLogGroup"
+      ]
+    },
+    "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "BriefingProxyLambdaFunction"
+        },
+        "CodeSha256": "uQFhGRQrqP+gxsIsDomAtCrB2P2Jim0yXhVgR8WL+d8=",
+        "Description": "EventBridge → AgentCore briefing invocation proxy"
+      }
+    },
+    "BriefingProxyEventsRuleSchedule1": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "ScheduleExpression": "cron(0 23 * * ? *)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Input": "{\"time_of_day\":\"AM\"}",
+            "Arn": {
+              "Fn::GetAtt": [
+                "BriefingProxyLambdaFunction",
+                "Arn"
+              ]
+            },
+            "Id": "briefingProxySchedule"
+          }
+        ]
+      }
+    },
+    "BriefingProxyLambdaPermissionEventsRuleSchedule1": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "BriefingProxyLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "BriefingProxyEventsRuleSchedule1",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "BriefingProxyEventsRuleSchedule2": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "ScheduleExpression": "cron(0 9 * * ? *)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Input": "{\"time_of_day\":\"PM\"}",
+            "Arn": {
+              "Fn::GetAtt": [
+                "BriefingProxyLambdaFunction",
+                "Arn"
+              ]
+            },
+            "Id": "briefingProxySchedule"
+          }
+        ]
+      }
+    },
+    "BriefingProxyLambdaPermissionEventsRuleSchedule2": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "BriefingProxyLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "BriefingProxyEventsRuleSchedule2",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "BriefingDLQ": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "financeaiapp-briefing-dlq",
+        "MessageRetentionPeriod": 1209600
+      }
+    },
+    "BriefingProxyEventInvokeConfig": {
+      "Type": "AWS::Lambda::EventInvokeConfig",
+      "Properties": {
+        "FunctionName": "financeaiapp-briefing-proxy",
+        "Qualifier": "$LATEST",
+        "DestinationConfig": {
+          "OnFailure": {
+            "Destination": {
+              "Fn::GetAtt": [
+                "BriefingDLQ",
+                "Arn"
+              ]
+            }
+          }
+        }
+      },
+      "DependsOn": [
+        "BriefingProxyLambdaFunction"
+      ]
+    },
+    "CognitoIdentityPool": {
+      "Type": "AWS::Cognito::IdentityPool",
+      "Properties": {
+        "IdentityPoolName": "financeaiapp_pool",
+        "AllowUnauthenticatedIdentities": true
+      }
+    },
+    "CognitoGuestRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "financeaiapp-guest-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Federated": "cognito-identity.amazonaws.com"
+              },
+              "Action": "sts:AssumeRoleWithWebIdentity",
+              "Condition": {
+                "StringEquals": {
+                  "cognito-identity.amazonaws.com:aud": {
+                    "Ref": "CognitoIdentityPool"
+                  }
+                },
+                "ForAnyValue:StringLike": {
+                  "cognito-identity.amazonaws.com:amr": "unauthenticated"
+                }
+              }
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "financeaiapp-guest-agentcore",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "bedrock-agentcore:InvokeAgentRuntime"
+                  ],
+                  "Resource": [
+                    "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "CognitoRoleAttachment": {
+      "Type": "AWS::Cognito::IdentityPoolRoleAttachment",
+      "Properties": {
+        "IdentityPoolId": {
+          "Ref": "CognitoIdentityPool"
+        },
+        "Roles": {
+          "unauthenticated": {
+            "Fn::GetAtt": [
+              "CognitoGuestRole",
+              "Arn"
+            ]
+          }
+        }
+      }
+    },
+    "FrontendBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "financeaiapp-frontend-612529367436",
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        }
+      }
+    },
+    "FrontendBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": {
+          "Ref": "FrontendBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AllowCloudFrontOAC",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+              },
+              "Action": "s3:GetObject",
+              "Resource": {
+                "Fn::Sub": "${FrontendBucket.Arn}/*"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": {
+                    "Fn::Sub": "arn:aws:cloudfront::612529367436:distribution/${CloudFrontDistribution}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "CloudFrontOAC": {
+      "Type": "AWS::CloudFront::OriginAccessControl",
+      "Properties": {
+        "OriginAccessControlConfig": {
+          "Name": "financeaiapp-oac",
+          "OriginAccessControlOriginType": "s3",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4"
+        }
+      }
+    },
+    "CloudFrontDistribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Properties": {
+        "DistributionConfig": {
+          "Enabled": true,
+          "Comment": "financeaiapp frontend",
+          "DefaultRootObject": "index.html",
+          "Origins": [
+            {
+              "Id": "S3Origin",
+              "DomainName": {
+                "Fn::GetAtt": [
+                  "FrontendBucket",
+                  "RegionalDomainName"
+                ]
+              },
+              "OriginAccessControlId": {
+                "Fn::GetAtt": [
+                  "CloudFrontOAC",
+                  "Id"
+                ]
+              },
+              "S3OriginConfig": {
+                "OriginAccessIdentity": ""
+              }
+            }
+          ],
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "S3Origin",
+            "ViewerProtocolPolicy": "redirect-to-https",
+            "AllowedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "CachedMethods": [
+              "GET",
+              "HEAD"
+            ],
+            "Compress": true,
+            "ForwardedValues": {
+              "QueryString": false,
+              "Cookies": {
+                "Forward": "none"
+              }
+            }
+          },
+          "CustomErrorResponses": [
+            {
+              "ErrorCode": 404,
+              "ResponseCode": 200,
+              "ResponsePagePath": "/index.html",
+              "ErrorCachingMinTTL": 0
+            },
+            {
+              "ErrorCode": 403,
+              "ResponseCode": 200,
+              "ResponsePagePath": "/index.html",
+              "ErrorCachingMinTTL": 0
+            }
+          ],
+          "PriceClass": "PriceClass_200"
+        }
+      }
+    },
+    "AlertTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "TopicName": "financeaiapp-alerts",
+        "DisplayName": "finance-ai-app alerts"
+      }
+    },
+    "AlertEmailSubscription": {
+      "Type": "AWS::SNS::Subscription",
+      "Properties": {
+        "TopicArn": {
+          "Ref": "AlertTopic"
+        },
+        "Protocol": "email",
+        "Endpoint": "dongik.dev73@gmail.com"
+      }
+    },
+    "DailyCostAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "financeaiapp-daily-cost",
+        "AlarmDescription": "Daily AWS cost > $5",
+        "Namespace": "AWS/Billing",
+        "MetricName": "EstimatedCharges",
+        "Dimensions": [
+          {
+            "Name": "Currency",
+            "Value": "USD"
+          }
+        ],
+        "Statistic": "Maximum",
+        "Period": 21600,
+        "EvaluationPeriods": 1,
+        "Threshold": 5,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ]
+      }
+    },
+    "BriefingLambdaErrorsAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "financeaiapp-briefing-lambda-errors",
+        "AlarmDescription": "Briefing Lambda errors in last 15 min",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": "financeaiapp-briefing-proxy"
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 900,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ]
+      }
+    },
+    "BriefingDLQDepthAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "financeaiapp-briefing-dlq-depth",
+        "AlarmDescription": "Briefing DLQ has messages — failed invocations",
+        "Namespace": "AWS/SQS",
+        "MetricName": "ApproximateNumberOfMessagesVisible",
+        "Dimensions": [
+          {
+            "Name": "QueueName",
+            "Value": "financeaiapp-briefing-dlq"
+          }
+        ],
+        "Statistic": "Maximum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 0,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "ServerlessDeploymentBucketName": {
+      "Value": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
+      "Export": {
+        "Name": "sls-financeaiapp-infra-prod-ServerlessDeploymentBucketName"
+      }
+    },
+    "BriefingProxyLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "BriefingProxyLambdaVersionsnw5W0mwpaJl6cgmgw6oSFMKfNA80TMV7Ttvwarmc"
+      },
+      "Export": {
+        "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
+      }
+    },
+    "IdentityPoolId": {
+      "Description": "Cognito Identity Pool ID (VITE_IDENTITY_POOL_ID)",
+      "Value": {
+        "Ref": "CognitoIdentityPool"
+      }
+    },
+    "FrontendBucketName": {
+      "Description": "S3 bucket for frontend deployment",
+      "Value": {
+        "Ref": "FrontendBucket"
+      }
+    },
+    "CloudFrontDistributionId": {
+      "Description": "CloudFront distribution ID (for cache invalidation)",
+      "Value": {
+        "Ref": "CloudFrontDistribution"
+      }
+    },
+    "CloudFrontDomain": {
+      "Description": "CloudFront domain (public URL)",
+      "Value": {
+        "Fn::GetAtt": [
+          "CloudFrontDistribution",
+          "DomainName"
+        ]
+      }
+    },
+    "AlertTopicArn": {
+      "Description": "SNS topic for alerts",
+      "Value": {
+        "Ref": "AlertTopic"
+      }
+    }
+  }
+}

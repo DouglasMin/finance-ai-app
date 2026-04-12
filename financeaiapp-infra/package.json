@@ -1,0 +1,14 @@
+{
+  "name": "financeaiapp-infra",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "serverless": "^4.34.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-agentcore": "^3.800.0"
+  }
+}

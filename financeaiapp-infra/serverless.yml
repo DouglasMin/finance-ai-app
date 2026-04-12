@@ -1,0 +1,307 @@
+# =============================================================================
+# FINANCEAIAPP Infrastructure — Serverless Framework v4
+# =============================================================================
+# Manages: Cognito, S3+CloudFront, Briefing Lambda+EventBridge,
+#          CloudWatch Alarms+SNS. All in Seoul (ap-northeast-2).
+#
+# Deploy:  cd financeaiapp-infra && npm install && serverless deploy
+# Remove:  serverless remove
+# =============================================================================
+
+service: financeaiapp-infra
+frameworkVersion: "4"
+
+provider:
+  name: aws
+  region: ap-northeast-2
+  runtime: nodejs22.x
+  stage: ${opt:stage, 'prod'}
+  environment:
+    AGENTCORE_RUNTIME_ARN: ${ssm:/financeaiapp/agentcore-runtime-arn}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - bedrock-agentcore:InvokeAgentRuntime
+          Resource:
+            - ${ssm:/financeaiapp/agentcore-runtime-arn}
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+          Resource:
+            - !GetAtt BriefingDLQ.Arn
+
+build:
+  esbuild:
+    bundle: true
+    minify: true
+    target: node22
+
+# =============================================================================
+# Lambda Functions
+# =============================================================================
+functions:
+  briefingProxy:
+    handler: src/briefing-proxy.handler
+    name: financeaiapp-briefing-proxy
+    description: "EventBridge → AgentCore briefing invocation proxy"
+    timeout: 120
+    memorySize: 256
+    events:
+      # 8:00 AM KST = 23:00 UTC (previous day)
+      - schedule:
+          rate: cron(0 23 * * ? *)
+          input:
+            time_of_day: "AM"
+      # 6:00 PM KST = 09:00 UTC
+      - schedule:
+          rate: cron(0 9 * * ? *)
+          input:
+            time_of_day: "PM"
+
+# =============================================================================
+# CloudFormation Resources
+# =============================================================================
+resources:
+  Resources:
+
+    # =========================================================================
+    # SQS — Briefing DLQ
+    # =========================================================================
+    BriefingDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: financeaiapp-briefing-dlq
+        MessageRetentionPeriod: 1209600  # 14 days
+
+    # Connect Lambda → DLQ via EventInvokeConfig (CFN native, not SLS syntax)
+    BriefingProxyEventInvokeConfig:
+      Type: AWS::Lambda::EventInvokeConfig
+      Properties:
+        FunctionName: financeaiapp-briefing-proxy
+        Qualifier: $LATEST
+        DestinationConfig:
+          OnFailure:
+            Destination: !GetAtt BriefingDLQ.Arn
+      DependsOn: BriefingProxyLambdaFunction
+
+    # =========================================================================
+    # Cognito Identity Pool (Guest/Unauthenticated)
+    # =========================================================================
+    CognitoIdentityPool:
+      Type: AWS::Cognito::IdentityPool
+      Properties:
+        IdentityPoolName: financeaiapp_pool
+        AllowUnauthenticatedIdentities: true
+
+    CognitoGuestRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: financeaiapp-guest-role
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Federated: cognito-identity.amazonaws.com
+              Action: sts:AssumeRoleWithWebIdentity
+              Condition:
+                StringEquals:
+                  "cognito-identity.amazonaws.com:aud": !Ref CognitoIdentityPool
+                "ForAnyValue:StringLike":
+                  "cognito-identity.amazonaws.com:amr": unauthenticated
+        Policies:
+          - PolicyName: financeaiapp-guest-agentcore
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - bedrock-agentcore:InvokeAgentRuntime
+                  Resource:
+                    - ${ssm:/financeaiapp/agentcore-runtime-arn}
+
+    CognitoRoleAttachment:
+      Type: AWS::Cognito::IdentityPoolRoleAttachment
+      Properties:
+        IdentityPoolId: !Ref CognitoIdentityPool
+        Roles:
+          unauthenticated: !GetAtt CognitoGuestRole.Arn
+
+    # =========================================================================
+    # S3 — Frontend Hosting
+    # =========================================================================
+    FrontendBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: financeaiapp-frontend-${aws:accountId}
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+
+    FrontendBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        Bucket: !Ref FrontendBucket
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Sid: AllowCloudFrontOAC
+              Effect: Allow
+              Principal:
+                Service: cloudfront.amazonaws.com
+              Action: s3:GetObject
+              Resource: !Sub "${FrontendBucket.Arn}/*"
+              Condition:
+                StringEquals:
+                  "AWS:SourceArn": !Sub "arn:aws:cloudfront::${aws:accountId}:distribution/${CloudFrontDistribution}"
+
+    # =========================================================================
+    # CloudFront — CDN
+    # =========================================================================
+    CloudFrontOAC:
+      Type: AWS::CloudFront::OriginAccessControl
+      Properties:
+        OriginAccessControlConfig:
+          Name: financeaiapp-oac
+          OriginAccessControlOriginType: s3
+          SigningBehavior: always
+          SigningProtocol: sigv4
+
+    CloudFrontDistribution:
+      Type: AWS::CloudFront::Distribution
+      Properties:
+        DistributionConfig:
+          Enabled: true
+          Comment: "financeaiapp frontend"
+          DefaultRootObject: index.html
+          Origins:
+            - Id: S3Origin
+              DomainName: !GetAtt FrontendBucket.RegionalDomainName
+              OriginAccessControlId: !GetAtt CloudFrontOAC.Id
+              S3OriginConfig:
+                OriginAccessIdentity: ""
+          DefaultCacheBehavior:
+            TargetOriginId: S3Origin
+            ViewerProtocolPolicy: redirect-to-https
+            AllowedMethods: [GET, HEAD]
+            CachedMethods: [GET, HEAD]
+            Compress: true
+            ForwardedValues:
+              QueryString: false
+              Cookies:
+                Forward: none
+          CustomErrorResponses:
+            # SPA fallback: 404/403 → index.html
+            - ErrorCode: 404
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+              ErrorCachingMinTTL: 0
+            - ErrorCode: 403
+              ResponseCode: 200
+              ResponsePagePath: /index.html
+              ErrorCachingMinTTL: 0
+          PriceClass: PriceClass_200
+
+    # =========================================================================
+    # SNS — Alert Topic
+    # =========================================================================
+    AlertTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: financeaiapp-alerts
+        DisplayName: "finance-ai-app alerts"
+
+    AlertEmailSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref AlertTopic
+        Protocol: email
+        Endpoint: dongik.dev73@gmail.com
+
+    # =========================================================================
+    # CloudWatch Alarms
+    # =========================================================================
+    DailyCostAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: financeaiapp-daily-cost
+        AlarmDescription: "Daily AWS cost > $5"
+        Namespace: AWS/Billing
+        MetricName: EstimatedCharges
+        Dimensions:
+          - Name: Currency
+            Value: USD
+        Statistic: Maximum
+        Period: 21600  # 6 hours
+        EvaluationPeriods: 1
+        Threshold: 5
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref AlertTopic
+
+    BriefingLambdaErrorsAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: financeaiapp-briefing-lambda-errors
+        AlarmDescription: "Briefing Lambda errors in last 15 min"
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions:
+          - Name: FunctionName
+            Value: financeaiapp-briefing-proxy
+        Statistic: Sum
+        Period: 900  # 15 min
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanOrEqualToThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref AlertTopic
+
+    BriefingDLQDepthAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: financeaiapp-briefing-dlq-depth
+        AlarmDescription: "Briefing DLQ has messages — failed invocations"
+        Namespace: AWS/SQS
+        MetricName: ApproximateNumberOfMessagesVisible
+        Dimensions:
+          - Name: QueueName
+            Value: financeaiapp-briefing-dlq
+        Statistic: Maximum
+        Period: 300  # 5 min
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref AlertTopic
+
+  # ===========================================================================
+  # Outputs — for frontend env vars and GitHub Actions
+  # ===========================================================================
+  Outputs:
+    IdentityPoolId:
+      Description: Cognito Identity Pool ID (VITE_IDENTITY_POOL_ID)
+      Value: !Ref CognitoIdentityPool
+
+    FrontendBucketName:
+      Description: S3 bucket for frontend deployment
+      Value: !Ref FrontendBucket
+
+    CloudFrontDistributionId:
+      Description: CloudFront distribution ID (for cache invalidation)
+      Value: !Ref CloudFrontDistribution
+
+    CloudFrontDomain:
+      Description: CloudFront domain (public URL)
+      Value: !GetAtt CloudFrontDistribution.DomainName
+
+    AlertTopicArn:
+      Description: SNS topic for alerts
+      Value: !Ref AlertTopic
