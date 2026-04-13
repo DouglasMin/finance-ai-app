@@ -115,10 +115,14 @@ async def fetch_news_node(state: dict) -> dict:
         )
 
     # Supplementary: Korean native news via Naver (when key configured).
-    # Fires whenever Korean context is relevant — either the user asked in
-    # Korean or a Korean ticker is in scope.
-    if (user_lang == "ko" or kr_tickers) and query:
-        coros.append(naver.search_naver_news(query, display=5))
+    # Always use ticker-based query — raw query can be a full briefing prompt.
+    if (user_lang == "ko" or kr_tickers) and tickers:
+        naver_q = " ".join(tickers[:3])
+        if crypto_tickers:
+            naver_q += " 코인 OR 암호화폐"
+        else:
+            naver_q += " 주식 OR 증시"
+        coros.append(naver.search_naver_news(naver_q, display=5))
 
     # Supplementary: US ticker-specific news + sentiment scoring
     if us_tickers:
