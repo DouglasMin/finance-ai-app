@@ -10,7 +10,6 @@ import threading
 from pathlib import Path
 
 from langchain.agents import create_agent
-from langgraph_checkpoint_aws import AgentCoreMemorySaver
 
 from agents.research_tool import research
 from infra.llm import get_llm, get_provider
@@ -32,13 +31,14 @@ MEMORY_ID = os.environ.get(
 )
 REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
 
-# Persistent checkpointer — lazy init to avoid crash at import time
-_checkpointer: AgentCoreMemorySaver | None = None
+# Persistent checkpointer — fully lazy (import + init deferred to first use)
+_checkpointer = None
 
 
-def _get_checkpointer() -> AgentCoreMemorySaver:
+def _get_checkpointer():
     global _checkpointer
     if _checkpointer is None:
+        from langgraph_checkpoint_aws import AgentCoreMemorySaver
         _checkpointer = AgentCoreMemorySaver(MEMORY_ID, region_name=REGION)
     return _checkpointer
 
