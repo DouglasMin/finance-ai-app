@@ -32,8 +32,15 @@ MEMORY_ID = os.environ.get(
 )
 REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
 
-# Persistent checkpointer — survives container restarts
-_checkpointer = AgentCoreMemorySaver(MEMORY_ID, region_name=REGION)
+# Persistent checkpointer — lazy init to avoid crash at import time
+_checkpointer: AgentCoreMemorySaver | None = None
+
+
+def _get_checkpointer() -> AgentCoreMemorySaver:
+    global _checkpointer
+    if _checkpointer is None:
+        _checkpointer = AgentCoreMemorySaver(MEMORY_ID, region_name=REGION)
+    return _checkpointer
 
 _prompt_path = Path(__file__).resolve().parent.parent / "prompts" / "orchestrator.md"
 _orchestrator_prompt: str | None = None
@@ -80,7 +87,7 @@ def get_orchestrator():
             model=llm,
             tools=_TOOLS,
             system_prompt=_load_prompt(),
-            checkpointer=_checkpointer,
+            checkpointer=_get_checkpointer(),
         )
         _current_provider = provider
     return _orchestrator
