@@ -111,6 +111,7 @@ function App() {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [isRefreshingWatchlist, setIsRefreshingWatchlist] = useState(false);
   const [briefings, setBriefings] = useState<BriefingSummary[]>([]);
+  const [openBriefing, setOpenBriefing] = useState<BriefingSummary | null>(null);
 
   const { events, isStreaming, error, sendMessage, reset } = useAgentStream();
 
@@ -152,6 +153,7 @@ function App() {
             timeOfDay: b.timeOfDay,
             status: b.status as BriefingSummary["status"],
             tickersCovered: b.tickersCovered,
+            content: b.content,
           })),
         );
       } catch (err) {
@@ -288,11 +290,12 @@ function App() {
     reset();
   }, [reset]);
 
-  const handleOpenBriefing = useCallback((_b: BriefingSummary) => {
-    // TODO: open briefing reader modal
+  const handleOpenBriefing = useCallback((b: BriefingSummary) => {
+    setOpenBriefing(b);
   }, []);
 
   return (
+    <>
     <TerminalFrame
       left={
         <SessionsPanel
@@ -325,6 +328,37 @@ function App() {
         />
       }
     />
+
+    {/* Briefing Reader Modal */}
+    {openBriefing && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
+        onClick={() => setOpenBriefing(null)}
+      >
+        <div
+          className="bg-bg border border-border rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center px-4 py-2 border-b border-border">
+            <span className="text-fg text-xs font-bold uppercase tracking-wider">
+              {openBriefing.date} {openBriefing.timeOfDay} briefing
+              <span className="ml-2 text-muted">[{openBriefing.status}]</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setOpenBriefing(null)}
+              className="text-muted hover:text-fg text-sm cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="p-4 overflow-y-auto text-fg-dim text-xs font-mono whitespace-pre-wrap leading-relaxed">
+            {openBriefing.content || "(내용 없음)"}
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 }
 

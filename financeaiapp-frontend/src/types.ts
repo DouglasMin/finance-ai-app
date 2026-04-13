@@ -55,4 +55,5 @@ export interface BriefingSummary {
   timeOfDay: "AM" | "PM";
   status: "pending" | "in_progress" | "partial" | "success" | "failed";
   tickersCovered: string[];
+  content?: string;
 }
