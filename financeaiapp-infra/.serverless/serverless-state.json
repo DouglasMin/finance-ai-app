@@ -20,7 +20,10 @@
               "Action": [
                 "bedrock-agentcore:InvokeAgentRuntime"
               ],
-              "Resource": "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki"
+              "Resource": [
+                "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki",
+                "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki/*"
+              ]
             },
             {
               "Effect": "Allow",
@@ -139,7 +142,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-                "S3Key": "serverless/financeaiapp-infra/prod/1776030246642-2026-04-12T21:44:06.642Z/financeaiapp-infra.zip"
+                "S3Key": "serverless/financeaiapp-infra/prod/1776080176305-2026-04-13T11:36:16.305Z/financeaiapp-infra.zip"
               },
               "Handler": "src/briefing-proxy.handler",
               "Runtime": "nodejs22.x",
@@ -164,14 +167,14 @@
               "BriefingProxyLogGroup"
             ]
           },
-          "BriefingProxyLambdaVersionYVgw3Ad7ier9rd7xz2Nj58dTKZ3QIdKEaFZnQAWkzY": {
+          "BriefingProxyLambdaVersionpCdTgE9qTtugruEgEL14ykiyk3xoQtlPtPwBYLbJW4": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "BriefingProxyLambdaFunction"
               },
-              "CodeSha256": "0QPx+rHTMY8SmMk46jE4eDIp69nZ1WLzZdM7hPF9A+k=",
+              "CodeSha256": "Zxz0ijBFufMIFOVVnmVKmXJVoFE+upvCbgu16HWo9VY=",
               "Description": "EventBridge → AgentCore briefing invocation proxy"
             }
           },
@@ -574,7 +577,7 @@
           "BriefingProxyLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "BriefingProxyLambdaVersionYVgw3Ad7ier9rd7xz2Nj58dTKZ3QIdKEaFZnQAWkzY"
+              "Ref": "BriefingProxyLambdaVersionpCdTgE9qTtugruEgEL14ykiyk3xoQtlPtPwBYLbJW4"
             },
             "Export": {
               "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
@@ -654,7 +657,7 @@
         "memory": 256,
         "runtime": "nodejs22.x",
         "vpc": {},
-        "versionLogicalId": "BriefingProxyLambdaVersionYVgw3Ad7ier9rd7xz2Nj58dTKZ3QIdKEaFZnQAWkzY"
+        "versionLogicalId": "BriefingProxyLambdaVersionpCdTgE9qTtugruEgEL14ykiyk3xoQtlPtPwBYLbJW4"
       }
     },
     "resources": {
@@ -1038,7 +1041,7 @@
     "layers": {}
   },
   "package": {
-    "artifactDirectoryName": "serverless/financeaiapp-infra/prod/1776030246642-2026-04-12T21:44:06.642Z",
+    "artifactDirectoryName": "serverless/financeaiapp-infra/prod/1776080176305-2026-04-13T11:36:16.305Z",
     "artifact": "financeaiapp-infra.zip"
   }
 }
