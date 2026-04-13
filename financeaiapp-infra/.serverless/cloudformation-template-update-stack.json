@@ -112,7 +112,7 @@
       "Properties": {
         "Code": {
           "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-          "S3Key": "serverless/financeaiapp-infra/prod/1776029999225-2026-04-12T21:39:59.225Z/financeaiapp-infra.zip"
+          "S3Key": "serverless/financeaiapp-infra/prod/1776030246642-2026-04-12T21:44:06.642Z/financeaiapp-infra.zip"
         },
         "Handler": "src/briefing-proxy.handler",
         "Runtime": "nodejs22.x",
@@ -137,14 +137,14 @@
         "BriefingProxyLogGroup"
       ]
     },
-    "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M": {
+    "BriefingProxyLambdaVersionYVgw3Ad7ier9rd7xz2Nj58dTKZ3QIdKEaFZnQAWkzY": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "BriefingProxyLambdaFunction"
         },
-        "CodeSha256": "N43T3BOBcUW2vaa0wjRO160P6WkdRS1bOVMSb6IQOgs=",
+        "CodeSha256": "0QPx+rHTMY8SmMk46jE4eDIp69nZ1WLzZdM7hPF9A+k=",
         "Description": "EventBridge → AgentCore briefing invocation proxy"
       }
     },
@@ -297,7 +297,8 @@
                     "bedrock-agentcore:InvokeAgentRuntime"
                   ],
                   "Resource": [
-                    "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki"
+                    "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki",
+                    "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki/*"
                   ]
                 }
               ]
@@ -546,7 +547,7 @@
     "BriefingProxyLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "BriefingProxyLambdaVersionle554Zo7CxQarjs9eBDPSYhBzSc0GemsRuRFuT9b9M"
+        "Ref": "BriefingProxyLambdaVersionYVgw3Ad7ier9rd7xz2Nj58dTKZ3QIdKEaFZnQAWkzY"
       },
       "Export": {
         "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"

@@ -122,6 +122,7 @@ resources:
                     - bedrock-agentcore:InvokeAgentRuntime
                   Resource:
                     - ${ssm:/financeaiapp/agentcore-runtime-arn}
+                    - ${ssm:/financeaiapp/agentcore-runtime-arn}/*
 
     CognitoRoleAttachment:
       Type: AWS::Cognito::IdentityPoolRoleAttachment

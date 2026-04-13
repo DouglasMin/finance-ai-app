@@ -32,7 +32,7 @@ agents:
     bedrock_agentcore:
       agent_id: FinancialAgent-uYnqdNGMki
       agent_arn: arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki
-      agent_session_id: 2c421c3e-8278-4461-976d-b99e5c3a5c32
+      agent_session_id: null
     codebuild:
       project_name: bedrock-agentcore-financialagent-builder
       execution_role: arn:aws:iam::612529367436:role/AmazonBedrockAgentCoreSDKCodeBuild-ap-northeast-2-ed5e79b315
