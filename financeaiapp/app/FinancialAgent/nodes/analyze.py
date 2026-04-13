@@ -16,6 +16,7 @@ from infra.logging_config import get_logger
 from schemas.analysis import AnalysisResult
 from schemas.market import MarketSnapshot
 from schemas.news import NewsSnapshot
+from storage.snapshots import save_snapshots
 
 log = get_logger("analyze_node")
 
@@ -174,6 +175,7 @@ async def analyze_node(state: dict) -> dict:
         result = await structured_llm.ainvoke(messages)
         analysis = _format_structured_to_markdown(result)
         log.info("analyze.structured.success", length=len(analysis))
+        save_snapshots(state.get("tickers", []), market, result)
         return {"analysis": analysis}
     except ValidationError as e:
         log.error(
@@ -190,11 +192,12 @@ async def analyze_node(state: dict) -> dict:
         response = await plain_llm.ainvoke(messages)
         analysis = response.content if isinstance(response.content, str) else str(response.content)
         log.info("analyze.plain.success", length=len(analysis))
+        save_snapshots(state.get("tickers", []), market)
         return {"analysis": analysis}
     except Exception as e:
-        log.error("analyze.failed", error=str(e))
+        log.error("analyze.failed", error=str(e), exc_info=True)
         errors = state.get("errors") or []
         return {
-            "analysis": f"분석 실패: {e}",
+            "analysis": "분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
             "errors": errors + [str(e)],
         }

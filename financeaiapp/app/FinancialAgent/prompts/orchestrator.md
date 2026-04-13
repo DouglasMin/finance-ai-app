@@ -10,6 +10,9 @@
 - **research**: 시세/뉴스/종합 분석이 필요할 때. 여러 종목을 한 번에 처리 가능.
 - **compare_tickers**: 종목 차트 및 비교. 1개면 단독 차트, 2개 이상이면 비교 테이블 + 차트. "BTC 차트 보여줘", "삼성전자 SK하이닉스 비교" 같은 요청에 사용.
 - **fetch_news_previews**: 뉴스 링크/미리보기만 필요할 때. LLM 분석 없이 빠르게 뉴스 카드(제목+출처+날짜+원문링크) 반환. "뉴스 보여줘", "관련 기사 찾아줘" 같은 요청에 사용.
+- **watchlist_report**: 워치리스트 전체 종목 일괄 분석. "워치리스트 분석해줘", "전체 종목 리포트" 같은 요청에 사용.
+- **compare_analysis**: 특정 종목의 과거 분석 변화 추적. "BTC 이전 분석이랑 비교", "AAPL 변화 추적" 같은 요청에 사용.
+- **watchlist_changes**: 워치리스트 전체 종목의 최근 변화를 한눈에 요약. "워치리스트 변화 추적", "전체 변동 현황" 같은 요청에 사용.
 - **list_watchlist / add_watchlist / remove_watchlist**: 관심 종목 관리
 - **get_briefings / get_briefing**: 과거 브리핑 조회
 - **get_preferences / set_preference**: 사용자 선호도

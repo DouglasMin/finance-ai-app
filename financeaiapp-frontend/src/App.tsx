@@ -3,7 +3,7 @@ import TerminalFrame from "./components/layout/TerminalFrame";
 import SessionsPanel from "./components/sessions/SessionsPanel";
 import WatchlistPanel from "./components/watchlist/WatchlistPanel";
 import ChatPanel from "./components/chat/ChatPanel";
-import { fetchWatchlist } from "./api/agentcore";
+import { fetchBriefings, fetchWatchlist } from "./api/agentcore";
 import { useAgentStream } from "./hooks/useAgentStream";
 import type {
   BriefingSummary,
@@ -110,7 +110,7 @@ function App() {
   });
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [isRefreshingWatchlist, setIsRefreshingWatchlist] = useState(false);
-  const [briefings] = useState<BriefingSummary[]>([]);
+  const [briefings, setBriefings] = useState<BriefingSummary[]>([]);
 
   const { events, isStreaming, error, sendMessage, reset } = useAgentStream();
 
@@ -140,6 +140,25 @@ function App() {
   useEffect(() => {
     refreshWatchlist();
   }, [refreshWatchlist]);
+
+  // Load briefings from backend (DDB)
+  useEffect(() => {
+    (async () => {
+      try {
+        const items = await fetchBriefings();
+        setBriefings(
+          items.map((b) => ({
+            date: b.date,
+            timeOfDay: b.timeOfDay,
+            status: b.status as BriefingSummary["status"],
+            tickersCovered: b.tickersCovered,
+          })),
+        );
+      } catch (err) {
+        console.error("briefings fetch failed:", err);
+      }
+    })();
+  }, []);
 
   const handleNewSession = useCallback(() => {
     const id = newSessionId();

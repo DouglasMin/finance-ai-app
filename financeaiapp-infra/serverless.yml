@@ -26,6 +26,7 @@ provider:
             - bedrock-agentcore:InvokeAgentRuntime
           Resource:
             - ${ssm:/financeaiapp/agentcore-runtime-arn}
+            - ${ssm:/financeaiapp/agentcore-runtime-arn}/*
         - Effect: Allow
           Action:
             - sqs:SendMessage

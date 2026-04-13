@@ -65,6 +65,23 @@ async def invoke(payload, context):
         yield {"event": "complete"}
         return
 
+    if action == "list_briefings":
+        from storage.ddb import query_by_sk_prefix
+        items = query_by_sk_prefix("BRIEF#", limit=10, ascending=False)
+        briefings = [
+            {
+                "date": item.get("date", ""),
+                "time_of_day": item.get("time_of_day", ""),
+                "status": item.get("status", ""),
+                "tickers_covered": item.get("tickers_covered", []),
+                "content": item.get("content", ""),
+            }
+            for item in items
+        ]
+        yield {"event": "briefings", "items": briefings}
+        yield {"event": "complete"}
+        return
+
     if action == "get_llm_provider":
         provider = get_provider()
         yield {"event": "llm_provider", "provider": provider}

@@ -27,7 +27,7 @@ import {
 import type { WatchlistItem } from "../types";
 
 export interface InvokePayload {
-  action: "chat" | "briefing" | "list_watchlist" | "get_llm_provider" | "set_llm_provider";
+  action: "chat" | "briefing" | "list_watchlist" | "list_briefings" | "get_llm_provider" | "set_llm_provider";
   session_id?: string;
   message?: string;
   time_of_day?: "AM" | "PM";
@@ -225,5 +225,38 @@ export async function fetchWatchlist(): Promise<WatchlistItem[]> {
     low: raw.low,
     volume: raw.volume,
     sparkline: raw.sparkline,
+  }));
+}
+
+/**
+ * Fetch recent briefings from the backend.
+ */
+export async function fetchBriefings(): Promise<
+  Array<{
+    date: string;
+    timeOfDay: "AM" | "PM";
+    status: string;
+    tickersCovered: string[];
+    content: string;
+  }>
+> {
+  const payload: InvokePayload = { action: "list_briefings" };
+  const controller = new AbortController();
+
+  const events: Array<Record<string, unknown>> = [];
+  for await (const chunk of streamInvocation(payload, controller.signal)) {
+    events.push(...parseSseFrames(chunk));
+  }
+
+  const briefingsEvent = events.find((e) => e.event === "briefings");
+  if (!briefingsEvent) return [];
+
+  const rawItems = (briefingsEvent.items ?? []) as Array<Record<string, unknown>>;
+  return rawItems.map((raw) => ({
+    date: (raw.date as string) ?? "",
+    timeOfDay: (raw.time_of_day as "AM" | "PM") ?? "AM",
+    status: (raw.status as string) ?? "",
+    tickersCovered: (raw.tickers_covered as string[]) ?? [],
+    content: (raw.content as string) ?? "",
   }));
 }

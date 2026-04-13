@@ -47,7 +47,7 @@ def query_by_sk_prefix(
         "KeyConditionExpression": Key("PK").eq(USER_PK) & Key("SK").begins_with(prefix),
         "ScanIndexForward": ascending,
     }
-    if limit:
+    if limit is not None:
         kwargs["Limit"] = limit
     response = get_table().query(**kwargs)
     return response.get("Items", [])
