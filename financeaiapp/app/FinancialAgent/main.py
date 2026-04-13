@@ -135,6 +135,8 @@ async def invoke(payload, context):
     }
     input_payload = {"messages": [HumanMessage(content=message)]}
 
+    pending_chart: str | None = None
+
     try:
         # Stream updates mode: emits per-node deltas as the graph runs
         async for chunk in orchestrator.astream(
@@ -159,6 +161,13 @@ async def invoke(payload, context):
                         content = getattr(msg, "content", "")
                         if not isinstance(content, str):
                             content = str(content)
+                        # Extract [CHART] block before truncating
+                        if tool_name == "compare_tickers":
+                            chart_match = re.search(
+                                r"\[CHART\]\n[\s\S]*?\n\[/CHART\]", content
+                            )
+                            if chart_match:
+                                pending_chart = chart_match.group(0)
                         yield {
                             "event": "tool_result",
                             "tool": tool_name,
@@ -185,6 +194,10 @@ async def invoke(payload, context):
                     elif msg_type == "ai":
                         content = getattr(msg, "content", "")
                         if isinstance(content, str) and content:
+                            # Append pending chart data so frontend renders it
+                            if pending_chart:
+                                content += "\n\n" + pending_chart
+                                pending_chart = None
                             yield {"event": "assistant", "content": content}
 
         # Update session metadata (DDB) — truncate title
