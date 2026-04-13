@@ -130,7 +130,10 @@ async def invoke(payload, context):
     }
 
     thread_config = {
-        "configurable": {"thread_id": session_id},
+        "configurable": {
+            "thread_id": session_id,
+            "actor_id": "user-me",
+        },
         "recursion_limit": 15,
     }
     input_payload = {"messages": [HumanMessage(content=message)]}
