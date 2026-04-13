@@ -722,6 +722,7 @@ dependencies = [
     { name = "langchain-mcp-adapters" },
     { name = "langchain-openai" },
     { name = "langgraph" },
+    { name = "langgraph-checkpoint-aws" },
     { name = "langsmith" },
     { name = "mcp" },
     { name = "pydantic" },
@@ -744,6 +745,7 @@ requires-dist = [
     { name = "langchain-mcp-adapters", specifier = ">=0.1.11" },
     { name = "langchain-openai", specifier = ">=0.2.0" },
     { name = "langgraph", specifier = ">=1.0.2" },
+    { name = "langgraph-checkpoint-aws", specifier = ">=1.0.6" },
     { name = "langsmith", specifier = ">=0.1.0" },
     { name = "mcp", specifier = ">=1.19.0" },
     { name = "pydantic", specifier = ">=2.9.0" },
@@ -1337,6 +1339,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b1/44/a8df45d1e8b4637e29789fa8bae1db022c953cc7ac80093cfc52e923547e/langgraph_checkpoint-4.0.1.tar.gz", hash = "sha256:b433123735df11ade28829e40ce25b9be614930cd50245ff2af60629234befd9", size = 158135, upload-time = "2026-02-27T21:06:16.092Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/65/4c/09a4a0c42f5d2fc38d6c4d67884788eff7fd2cfdf367fdf7033de908b4c0/langgraph_checkpoint-4.0.1-py3-none-any.whl", hash = "sha256:e3adcd7a0e0166f3b48b8cf508ce0ea366e7420b5a73aa81289888727769b034", size = 50453, upload-time = "2026-02-27T21:06:14.293Z" },
+]
+
+[[package]]
+name = "langgraph-checkpoint-aws"
+version = "1.0.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "boto3" },
+    { name = "langgraph" },
+    { name = "langgraph-checkpoint" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6e/73/774df6d206108cfb787790e39a9bb3507557eacec8b8bf1d303637323ba2/langgraph_checkpoint_aws-1.0.6.tar.gz", hash = "sha256:4c86ce4aa4a70d70dc4be975fe6fcf12452995871d9c84c341086271ee79fd94", size = 272081, upload-time = "2026-02-27T02:04:10.971Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d9/dc/b84d823bc1fbe19f54d189fea5275f104898cd518f0229c2fd4fc59826af/langgraph_checkpoint_aws-1.0.6-py3-none-any.whl", hash = "sha256:1128e625050895295e70c3fb6ce9cf2fab8dab4bdb3385cc27295d96715810a7", size = 154495, upload-time = "2026-02-27T02:03:55.334Z" },
 ]
 
 [[package]]
