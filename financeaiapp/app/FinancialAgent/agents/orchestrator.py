@@ -2,13 +2,15 @@
 
 Top-level agent that handles conversation, tool routing, and memory.
 Detects LLM provider changes at runtime and recreates the agent
-without server restart.
+without server restart. Checkpointer uses AgentCore Memory for
+persistent conversation history.
 """
+import os
 import threading
 from pathlib import Path
 
 from langchain.agents import create_agent
-from langgraph.checkpoint.memory import InMemorySaver
+from langgraph_checkpoint_aws import AgentCoreMemorySaver
 
 from agents.research_tool import research
 from infra.llm import get_llm, get_provider
@@ -25,8 +27,13 @@ _orchestrator = None
 _current_provider: str | None = None
 _orchestrator_lock = threading.Lock()
 
-# Persistent checkpointer — shared across provider switches
-_checkpointer = InMemorySaver()
+MEMORY_ID = os.environ.get(
+    "AGENTCORE_MEMORY_ID", "FinancialAgentMemory-zkfgNCGggq"
+)
+REGION = os.environ.get("AWS_REGION", "ap-northeast-2")
+
+# Persistent checkpointer — survives container restarts
+_checkpointer = AgentCoreMemorySaver(MEMORY_ID, region_name=REGION)
 
 _prompt_path = Path(__file__).resolve().parent.parent / "prompts" / "orchestrator.md"
 _orchestrator_prompt: str | None = None
