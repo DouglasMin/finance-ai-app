@@ -24,12 +24,18 @@ log = get_logger("main")
 
 # langchain/langsmith reads LANGSMITH_API_KEY directly from os.environ,
 # so we must inject it from Secrets Manager before any traced call runs.
-# Non-sensitive flags (LANGCHAIN_TRACING_V2, LANGCHAIN_PROJECT) stay as
-# container env vars.
-if os.environ.get("LANGCHAIN_TRACING_V2", "").lower() == "true":
+# Non-sensitive flags (LANGCHAIN_TRACING_V2, LANGSMITH_TRACING, LANGSMITH_PROJECT)
+# are set in the Dockerfile.
+_tracing_enabled = (
+    os.environ.get("LANGCHAIN_TRACING_V2", "").lower() == "true"
+    or os.environ.get("LANGSMITH_TRACING", "").lower() == "true"
+)
+if _tracing_enabled:
     _ls_key = get_secret("LANGSMITH_API_KEY")
     if _ls_key:
         os.environ.setdefault("LANGSMITH_API_KEY", _ls_key)
+        os.environ.setdefault("LANGCHAIN_API_KEY", _ls_key)
+        log.info("langsmith.enabled", project=os.environ.get("LANGSMITH_PROJECT"))
     else:
         log.warning("langsmith.key.missing", reason="not in Secrets Manager")
 

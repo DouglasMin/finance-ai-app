@@ -12,7 +12,11 @@ ENV UV_SYSTEM_PYTHON=1 \
     DOCKER_CONTAINER=1 \
     UV_DEFAULT_INDEX=${UV_DEFAULT_INDEX} \
     UV_INDEX=${UV_INDEX} \
-    PATH="/app/.venv/bin:$PATH"
+    PATH="/app/.venv/bin:$PATH" \
+    LANGCHAIN_TRACING_V2=true \
+    LANGSMITH_TRACING=true \
+    LANGCHAIN_PROJECT=financeaiapp \
+    LANGSMITH_PROJECT=financeaiapp
 
 RUN useradd -m -u 1000 bedrock_agentcore
 
