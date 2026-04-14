@@ -22,34 +22,38 @@ from storage.snapshots import save_snapshots
 log = get_logger("analyze_node")
 
 _init_lock = threading.Lock()
-_analyze_llm = None
-_structured_llm = None
-_analyze_provider: str | None = None
+_llm_cache: tuple[object, object, str] | None = None  # (plain, structured, provider)
+
+
+def _ensure_llms():
+    """Return (plain_llm, structured_llm) for the current provider.
+
+    Single source of truth — both instances are always in sync with the
+    active provider, eliminating the asymmetric-mutation risk of separate
+    getters that shared the same globals.
+    """
+    global _llm_cache
+    provider = get_provider()
+    cache = _llm_cache
+    if cache is not None and cache[2] == provider:
+        return cache[0], cache[1]
+
+    with _init_lock:
+        cache = _llm_cache
+        if cache is not None and cache[2] == provider:
+            return cache[0], cache[1]
+        plain = get_llm("analyze")
+        structured = plain.with_structured_output(AnalysisResult)
+        _llm_cache = (plain, structured, provider)
+    return plain, structured
 
 
 def _get_structured_llm():
-    global _analyze_llm, _structured_llm, _analyze_provider
-    provider = get_provider()
-    if _structured_llm is None or _analyze_provider != provider:
-        with _init_lock:
-            if _structured_llm is None or _analyze_provider != provider:
-                _analyze_llm = get_llm("analyze")
-                _structured_llm = _analyze_llm.with_structured_output(
-                    AnalysisResult
-                )
-                _analyze_provider = provider
-    return _structured_llm
+    return _ensure_llms()[1]
 
 
 def _get_plain_llm():
-    global _analyze_llm, _analyze_provider
-    provider = get_provider()
-    if _analyze_llm is None or _analyze_provider != provider:
-        with _init_lock:
-            if _analyze_llm is None or _analyze_provider != provider:
-                _analyze_llm = get_llm("analyze")
-                _analyze_provider = provider
-    return _analyze_llm
+    return _ensure_llms()[0]
 
 
 _analyze_prompt: str | None = None

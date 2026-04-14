@@ -9,14 +9,14 @@ Flow:
    - Updates DDB with final content + status (success/partial/failed)
 3. UI polls DDB (via orchestrator tool) to display briefings
 """
-import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Literal
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from agents.research_graph import run_research
+from agents.research_graph import run_research_detailed
 from infra.logging_config import correlation_id_var, get_logger
 from schemas.briefing import BriefingRecord
 from storage.ddb import put_item, query_by_sk_prefix
@@ -30,12 +30,17 @@ def _kst_date() -> str:
     return kst.strftime("%Y-%m-%d")
 
 
+_briefing_prompt: str | None = None
+_briefing_prompt_path = (
+    Path(__file__).resolve().parent.parent / "prompts" / "briefing.md"
+)
+
+
 def _load_briefing_prompt() -> str:
-    prompt_path = os.path.join(
-        os.path.dirname(__file__), "..", "prompts", "briefing.md"
-    )
-    with open(prompt_path, "r", encoding="utf-8") as f:
-        return f.read()
+    global _briefing_prompt
+    if _briefing_prompt is None:
+        _briefing_prompt = _briefing_prompt_path.read_text(encoding="utf-8")
+    return _briefing_prompt
 
 
 def _build_briefing_query(
@@ -107,20 +112,24 @@ async def run_briefing(
             log.warning("briefing.empty_watchlist")
             return {"status": "failed", "reason": "empty_watchlist"}
 
-        # Stage 3: run research
+        # Stage 3: run research (returns content + structured error info)
         query = _build_briefing_query(time_of_day, tickers)
-        content = await run_research(query=query, tickers=tickers, lang="ko")
+        research = await run_research_detailed(
+            query=query, tickers=tickers, lang="ko"
+        )
+        content = research.content
 
         duration_ms = int(
             (datetime.now(timezone.utc) - start).total_seconds() * 1000
         )
 
-        # Stage 4: decide status — partial if content mentions data gaps
+        # Stage 4: decide status from structured errors (not text scraping)
         status: BriefingRecord.__annotations__["status"] = "success"
         errors: list[str] = []
-        if "데이터 누락" in content or "데이터 부족" in content or "⚠️" in content:
+        if research.has_errors:
             status = "partial"
-            errors.append("data_gaps_detected_in_content")
+            errors.extend(f"market: {e}" for e in research.market_errors)
+            errors.extend(f"news: {e}" for e in research.news_errors)
 
         record = BriefingRecord(
             date=date_str,

@@ -66,32 +66,26 @@ async def invoke(payload, context):
         return
 
     if action == "add_watchlist":
-        from datetime import datetime, timezone
-        from storage.ddb import put_item
-        from tools.sources.classifier import classify_ticker
-        symbol = (payload.get("symbol") or "").strip().upper()
-        category = (payload.get("category") or "").strip()
+        from tools.watchlist import add_watchlist_item
+        symbol = (payload.get("symbol") or "").strip()
         if not symbol:
             yield {"event": "error", "message": "Missing symbol"}
             return
-        category = category or await classify_ticker(symbol)
-        put_item(f"WATCH#{symbol}", {
-            "symbol": symbol,
-            "category": category,
-            "added_at": datetime.now(timezone.utc).isoformat(),
-        })
-        yield {"event": "watchlist_updated", "action": "add", "symbol": symbol}
+        sym, _cat = await add_watchlist_item(
+            symbol, payload.get("category") or ""
+        )
+        yield {"event": "watchlist_updated", "action": "add", "symbol": sym}
         yield {"event": "complete"}
         return
 
     if action == "remove_watchlist":
-        from storage.ddb import delete_item
-        symbol = (payload.get("symbol") or "").strip().upper()
+        from tools.watchlist import remove_watchlist_item
+        symbol = (payload.get("symbol") or "").strip()
         if not symbol:
             yield {"event": "error", "message": "Missing symbol"}
             return
-        delete_item(f"WATCH#{symbol}")
-        yield {"event": "watchlist_updated", "action": "remove", "symbol": symbol}
+        sym = remove_watchlist_item(symbol)
+        yield {"event": "watchlist_updated", "action": "remove", "symbol": sym}
         yield {"event": "complete"}
         return
 
