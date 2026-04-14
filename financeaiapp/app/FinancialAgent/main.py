@@ -68,20 +68,13 @@ async def invoke(payload, context):
     if action == "add_watchlist":
         from datetime import datetime, timezone
         from storage.ddb import put_item
+        from tools.watchlist import _detect_category
         symbol = (payload.get("symbol") or "").strip().upper()
         category = (payload.get("category") or "").strip()
         if not symbol:
             yield {"event": "error", "message": "Missing symbol"}
             return
-        if not category:
-            if "/" in symbol:
-                category = "fx"
-            elif symbol.isdigit() and len(symbol) == 6:
-                category = "kr_stock"
-            elif symbol in {"BTC","ETH","SOL","XRP","DOGE","ADA","DOT","LINK","AVAX"}:
-                category = "crypto"
-            else:
-                category = "us_stock"
+        category = category or _detect_category(symbol)
         put_item(f"WATCH#{symbol}", {
             "symbol": symbol,
             "category": category,
