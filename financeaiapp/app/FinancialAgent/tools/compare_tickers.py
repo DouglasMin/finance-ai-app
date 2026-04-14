@@ -11,11 +11,13 @@ from datetime import datetime, timedelta, timezone
 
 from langchain_core.tools import tool
 
+from infra.formatting import format_price as _format_price
+from infra.formatting import format_volume as _format_volume
 from infra.logging_config import get_logger
 from nodes.fetch_market import _fetch_one
-from tools.sources.classifier import classify_ticker
 from schemas.market import MarketQuote
-from tools.sources import okx, pykrx_adapter, frankfurter
+from tools.sources import frankfurter, okx, pykrx_adapter
+from tools.sources.classifier import classify_ticker
 
 log = get_logger("compare_tickers")
 
@@ -45,10 +47,6 @@ async def _fetch_history(ticker: str) -> list[float]:
     return []
 
 
-def _format_price(price: float, currency: str) -> str:
-    if currency == "KRW":
-        return f"₩{price:,.0f}"
-    return f"${price:,.2f}"
 
 
 def _build_chart_data(
@@ -175,12 +173,7 @@ async def compare_tickers(
     for t in tickers:
         q = quote_map.get(t)
         if q and q.volume is not None:
-            if q.volume >= 1_000_000:
-                vol_cells.append(f"{q.volume / 1_000_000:.1f}M")
-            elif q.volume >= 1_000:
-                vol_cells.append(f"{q.volume / 1_000:.1f}K")
-            else:
-                vol_cells.append(f"{q.volume:.0f}")
+            vol_cells.append(_format_volume(q.volume))
         else:
             vol_cells.append("--")
     rows.append("| 거래량 | " + " | ".join(vol_cells) + " |")

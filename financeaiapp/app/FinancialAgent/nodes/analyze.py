@@ -11,6 +11,7 @@ from pathlib import Path
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import ValidationError
 
+from infra.formatting import format_price, format_volume
 from infra.llm import get_llm, get_provider
 from infra.logging_config import get_logger
 from schemas.analysis import AnalysisResult
@@ -75,12 +76,17 @@ def _format_context(
             change_str = f" ({q.change_pct:+.2f}%)" if q.change_pct is not None else ""
             range_str = ""
             if q.high is not None and q.low is not None:
-                range_str = f" | 고가 {q.high:,.2f} / 저가 {q.low:,.2f}"
+                range_str = (
+                    f" | 고가 {format_price(q.high, q.currency)}"
+                    f" / 저가 {format_price(q.low, q.currency)}"
+                )
             vol_str = ""
             if q.volume is not None:
-                vol_str = f" | 거래량 {q.volume:,.0f}"
+                vol_str = f" | 거래량 {format_volume(q.volume)}"
             parts.append(
-                f"- **{q.symbol}** ({q.category}): {q.currency} {q.price:,.2f}{change_str}{range_str}{vol_str} [{q.source}]"
+                f"- **{q.symbol}** ({q.category}): "
+                f"{format_price(q.price, q.currency)}{change_str}"
+                f"{range_str}{vol_str} [{q.source}]"
             )
     if market.errors:
         parts.append(f"\n⚠️ 시세 누락: {', '.join(market.errors[:3])}")

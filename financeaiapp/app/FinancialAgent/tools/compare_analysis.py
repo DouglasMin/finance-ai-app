@@ -3,6 +3,7 @@ import re
 
 from langchain_core.tools import tool
 
+from infra.formatting import format_price
 from storage.ddb import query_by_sk_prefix
 
 _TICKER_RE = re.compile(r"^[A-Za-z0-9/.\-]{1,20}$")
@@ -23,8 +24,8 @@ def _fmt_price(snap: dict) -> str:
     price = _safe_float(snap.get("price"))
     if price is None:
         return "N/A"
-    currency = snap.get("currency", "$")
-    return f"{currency} {price:,.2f}"
+    currency = snap.get("currency") or "USD"
+    return format_price(price, currency)
 
 
 @tool
