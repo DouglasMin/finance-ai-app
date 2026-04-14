@@ -237,10 +237,11 @@ async def invoke(payload, context):
                     elif msg_type == "ai":
                         content = getattr(msg, "content", "")
                         if isinstance(content, str) and content:
-                            # Append pending chart data so frontend renders it
-                            if pending_chart:
+                            # Append pending chart only if LLM didn't already
+                            # include the [CHART] block itself (avoid duplicate)
+                            if pending_chart and "[CHART]" not in content:
                                 content += "\n\n" + pending_chart
-                                pending_chart = None
+                            pending_chart = None
                             yield {"event": "assistant", "content": content}
 
         # Update session metadata (DDB) — truncate title
