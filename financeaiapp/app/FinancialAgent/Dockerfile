@@ -15,8 +15,8 @@ ENV UV_SYSTEM_PYTHON=1 \
     PATH="/app/.venv/bin:$PATH" \
     LANGCHAIN_TRACING_V2=true \
     LANGSMITH_TRACING=true \
-    LANGCHAIN_PROJECT=financeaiapp \
-    LANGSMITH_PROJECT=financeaiapp
+    LANGCHAIN_PROJECT=agentcore-briefing-bot \
+    LANGSMITH_PROJECT=agentcore-briefing-bot
 
 RUN useradd -m -u 1000 bedrock_agentcore
 
