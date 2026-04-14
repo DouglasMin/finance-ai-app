@@ -19,25 +19,9 @@ from typing import Any
 
 from infra.logging_config import get_logger
 from schemas.news import NewsItem, NewsSnapshot
-from tools.sources import alphavantage, finnhub, googlenews, naver
+from tools.sources import alphavantage, finnhub, googlenews, naver, okx
 
 log = get_logger("fetch_news_node")
-
-_KNOWN_CRYPTOS = {
-    "BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "DOT", "LINK", "AVAX",
-    "MATIC", "TRX", "LTC", "BCH", "ATOM", "NEAR", "APT", "ARB", "OP",
-}
-
-
-def _is_us_ticker(ticker: str) -> bool:
-    t = ticker.upper()
-    if "/" in t:
-        return False
-    if t.isdigit():
-        return False
-    if t in _KNOWN_CRYPTOS or t.endswith("-USDT"):
-        return False
-    return True
 
 
 def _is_kr_ticker(ticker: str) -> bool:
@@ -45,9 +29,22 @@ def _is_kr_ticker(ticker: str) -> bool:
     return ticker.isdigit() and len(ticker) == 6
 
 
-def _is_crypto(ticker: str) -> bool:
-    t = ticker.upper()
-    return t in _KNOWN_CRYPTOS or t.endswith("-USDT") or t.endswith("-USD")
+async def _classify_tickers(tickers: list[str]) -> dict[str, list[str]]:
+    """Classify tickers into {crypto, us_stock, kr_stock, fx} via OKX lookup."""
+    buckets: dict[str, list[str]] = {
+        "crypto": [], "us_stock": [], "kr_stock": [], "fx": [],
+    }
+    for t in tickers:
+        u = t.upper().strip()
+        if "/" in u:
+            buckets["fx"].append(t)
+        elif _is_kr_ticker(u):
+            buckets["kr_stock"].append(t)
+        elif u.endswith("-USDT") or u.endswith("-USD") or await okx.is_crypto_symbol(u):
+            buckets["crypto"].append(t)
+        else:
+            buckets["us_stock"].append(t)
+    return buckets
 
 
 _TICKER_NAMES: dict[str, str] = {
@@ -85,9 +82,10 @@ async def fetch_news_node(state: dict) -> dict:
 
     coros: list[Any] = []
 
-    kr_tickers = [t for t in tickers if _is_kr_ticker(t)]
-    us_tickers = [t for t in tickers if _is_us_ticker(t)]
-    crypto_tickers = [t for t in tickers if _is_crypto(t)]
+    buckets = await _classify_tickers(tickers)
+    kr_tickers = buckets["kr_stock"]
+    us_tickers = buckets["us_stock"]
+    crypto_tickers = buckets["crypto"]
 
     has_global_asset = bool(crypto_tickers or us_tickers)
     has_kr_asset = bool(kr_tickers)

@@ -15,26 +15,22 @@ from tools.sources import alphavantage, frankfurter, okx, pykrx_adapter
 
 log = get_logger("fetch_market_node")
 
-_KNOWN_CRYPTOS = {
-    "BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "DOT", "LINK", "AVAX",
-    "MATIC", "TRX", "LTC", "BCH", "ATOM", "NEAR", "APT", "ARB", "OP",
-}
-
-
-def _categorize(ticker: str) -> str:
-    """Rough category detection based on ticker shape."""
+async def _categorize(ticker: str) -> str:
+    """Category detection — checks OKX instrument list for crypto."""
     t = ticker.upper().strip()
     if "/" in t:
         return "fx"
     if re.fullmatch(r"\d{6}", t):
         return "kr_stock"
-    if t in _KNOWN_CRYPTOS or t.endswith("-USDT") or t.endswith("-USD"):
+    if t.endswith("-USDT") or t.endswith("-USD"):
+        return "crypto"
+    if await okx.is_crypto_symbol(t):
         return "crypto"
     return "us_stock"
 
 
 async def _fetch_one(ticker: str) -> MarketQuote | None:
-    category = _categorize(ticker)
+    category = await _categorize(ticker)
     try:
         if category == "crypto":
             return await okx.get_crypto_price(ticker)

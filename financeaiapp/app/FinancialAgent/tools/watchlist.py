@@ -4,19 +4,16 @@ from datetime import datetime, timezone
 from langchain_core.tools import tool
 
 from storage.ddb import delete_item, put_item, query_by_sk_prefix
-
-_KNOWN_CRYPTOS = {
-    "BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "DOT", "LINK", "AVAX",
-}
+from tools.sources.okx import is_crypto_symbol
 
 
-def _detect_category(symbol: str) -> str:
+async def _detect_category(symbol: str) -> str:
     s = symbol.upper().strip()
     if "/" in s:
         return "fx"
     if s.isdigit() and len(s) == 6:
         return "kr_stock"
-    if s in _KNOWN_CRYPTOS or s.endswith("-USDT"):
+    if s.endswith("-USDT") or await is_crypto_symbol(s):
         return "crypto"
     return "us_stock"
 
@@ -37,7 +34,7 @@ def list_watchlist() -> str:
 
 
 @tool
-def add_watchlist(symbol: str, category: str = "") -> str:
+async def add_watchlist(symbol: str, category: str = "") -> str:
     """관심 종목에 추가합니다.
 
     Args:
@@ -45,7 +42,7 @@ def add_watchlist(symbol: str, category: str = "") -> str:
         category: crypto/us_stock/kr_stock/fx 중 하나. 비워두면 자동 감지.
     """
     sym = symbol.upper().strip()
-    cat = category.strip() or _detect_category(sym)
+    cat = category.strip() or await _detect_category(sym)
     put_item(
         f"WATCH#{sym}",
         {

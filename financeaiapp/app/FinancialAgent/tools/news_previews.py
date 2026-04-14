@@ -12,9 +12,8 @@ from infra.logging_config import get_logger
 from nodes.fetch_news import (
     _build_en_query,
     _build_ko_query,
-    _is_crypto,
+    _classify_tickers,
     _is_kr_ticker,
-    _is_us_ticker,
 )
 from schemas.news import NewsItem, NewsSnapshot
 from tools.sources import alphavantage, finnhub, googlenews, naver
@@ -78,9 +77,10 @@ async def fetch_news_previews(
     tickers = tickers or []
     coros: list = []
 
-    kr_tickers = [t for t in tickers if _is_kr_ticker(t)]
-    us_tickers = [t for t in tickers if _is_us_ticker(t)]
-    crypto_tickers = [t for t in tickers if _is_crypto(t)]
+    buckets = await _classify_tickers(tickers)
+    kr_tickers = buckets["kr_stock"]
+    us_tickers = buckets["us_stock"]
+    crypto_tickers = buckets["crypto"]
 
     # English Google News (ticker-based query for better results)
     en_query = _build_en_query(crypto_tickers + us_tickers + kr_tickers)

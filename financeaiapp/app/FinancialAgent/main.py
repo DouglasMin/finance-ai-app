@@ -74,7 +74,7 @@ async def invoke(payload, context):
         if not symbol:
             yield {"event": "error", "message": "Missing symbol"}
             return
-        category = category or _detect_category(symbol)
+        category = category or await _detect_category(symbol)
         put_item(f"WATCH#{symbol}", {
             "symbol": symbol,
             "category": category,

@@ -23,7 +23,7 @@ _SPARKLINE_DAYS = 7
 
 async def _fetch_history(ticker: str) -> list[float]:
     """Fetch sparkline history for a ticker. Returns empty list on failure."""
-    category = _categorize(ticker)
+    category = await _categorize(ticker)
     try:
         if category == "crypto":
             return await okx.get_crypto_history(ticker, days=_SPARKLINE_DAYS)

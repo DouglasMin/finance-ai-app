@@ -12,6 +12,29 @@ from schemas.market import MarketQuote
 log = get_logger("okx")
 BASE_URL = "https://www.okx.com/api/v5/market/ticker"
 CANDLES_URL = "https://www.okx.com/api/v5/market/candles"
+INSTRUMENTS_URL = "https://www.okx.com/api/v5/public/instruments"
+
+_crypto_symbols_cache: set[str] | None = None
+
+
+async def is_crypto_symbol(symbol: str) -> bool:
+    """Check if symbol is a valid OKX spot crypto (vs USDT). Cached in-process."""
+    global _crypto_symbols_cache
+    if _crypto_symbols_cache is None:
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                r = await client.get(INSTRUMENTS_URL, params={"instType": "SPOT"})
+                r.raise_for_status()
+                data = r.json().get("data", [])
+                _crypto_symbols_cache = {
+                    item["baseCcy"].upper()
+                    for item in data
+                    if item.get("quoteCcy") == "USDT"
+                }
+        except Exception as e:
+            log.warning("okx.instruments.failed", error=str(e))
+            _crypto_symbols_cache = set()
+    return symbol.upper() in _crypto_symbols_cache
 
 
 @retry_api(max_attempts=3)
