@@ -65,6 +65,43 @@ async def invoke(payload, context):
         yield {"event": "complete"}
         return
 
+    if action == "add_watchlist":
+        from datetime import datetime, timezone
+        from storage.ddb import put_item
+        symbol = (payload.get("symbol") or "").strip().upper()
+        category = (payload.get("category") or "").strip()
+        if not symbol:
+            yield {"event": "error", "message": "Missing symbol"}
+            return
+        if not category:
+            if "/" in symbol:
+                category = "fx"
+            elif symbol.isdigit() and len(symbol) == 6:
+                category = "kr_stock"
+            elif symbol in {"BTC","ETH","SOL","XRP","DOGE","ADA","DOT","LINK","AVAX"}:
+                category = "crypto"
+            else:
+                category = "us_stock"
+        put_item(f"WATCH#{symbol}", {
+            "symbol": symbol,
+            "category": category,
+            "added_at": datetime.now(timezone.utc).isoformat(),
+        })
+        yield {"event": "watchlist_updated", "action": "add", "symbol": symbol}
+        yield {"event": "complete"}
+        return
+
+    if action == "remove_watchlist":
+        from storage.ddb import delete_item
+        symbol = (payload.get("symbol") or "").strip().upper()
+        if not symbol:
+            yield {"event": "error", "message": "Missing symbol"}
+            return
+        delete_item(f"WATCH#{symbol}")
+        yield {"event": "watchlist_updated", "action": "remove", "symbol": symbol}
+        yield {"event": "complete"}
+        return
+
     if action == "list_briefings":
         from storage.ddb import query_by_sk_prefix
         items = query_by_sk_prefix("BRIEF#", limit=10, ascending=False)

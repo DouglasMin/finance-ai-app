@@ -27,12 +27,30 @@ import {
 import type { WatchlistItem } from "../types";
 
 export interface InvokePayload {
-  action: "chat" | "briefing" | "list_watchlist" | "list_briefings" | "get_llm_provider" | "set_llm_provider";
+  action: "chat" | "briefing" | "list_watchlist" | "list_briefings" | "add_watchlist" | "remove_watchlist" | "get_llm_provider" | "set_llm_provider";
   session_id?: string;
   message?: string;
   time_of_day?: "AM" | "PM";
   correlation_id?: string;
   provider?: string;
+  symbol?: string;
+  category?: string;
+}
+
+export async function addWatchlistItem(symbol: string, category?: string): Promise<void> {
+  const payload: InvokePayload = { action: "add_watchlist", symbol, category };
+  const controller = new AbortController();
+  for await (const _ of streamInvocation(payload, controller.signal)) {
+    // drain stream
+  }
+}
+
+export async function removeWatchlistItem(symbol: string): Promise<void> {
+  const payload: InvokePayload = { action: "remove_watchlist", symbol };
+  const controller = new AbortController();
+  for await (const _ of streamInvocation(payload, controller.signal)) {
+    // drain stream
+  }
 }
 
 interface WatchlistApiItem {

@@ -3,7 +3,12 @@ import TerminalFrame from "./components/layout/TerminalFrame";
 import SessionsPanel from "./components/sessions/SessionsPanel";
 import WatchlistPanel from "./components/watchlist/WatchlistPanel";
 import ChatPanel from "./components/chat/ChatPanel";
-import { fetchBriefings, fetchWatchlist } from "./api/agentcore";
+import {
+  addWatchlistItem,
+  fetchBriefings,
+  fetchWatchlist,
+  removeWatchlistItem,
+} from "./api/agentcore";
 import { useAgentStream } from "./hooks/useAgentStream";
 import type {
   BriefingSummary,
@@ -254,23 +259,27 @@ function App() {
     }
   }, [isStreaming, events, activeSession, reset, refreshWatchlist]);
 
-  const handleAddWatchlist = useCallback(() => {
+  const handleAddWatchlist = useCallback(async () => {
     const symbol = prompt("종목 심볼을 입력하세요 (예: BTC, AAPL, 005930)");
     if (!symbol) return;
-    // Route the add through chat so the agent handles validation + DDB write,
-    // then refreshWatchlist() on stream complete picks up the new item.
-    if (activeSession) {
-      handleSend(`${symbol.trim().toUpperCase()} 관심종목에 추가해줘`);
+    try {
+      await addWatchlistItem(symbol.trim().toUpperCase());
+      await refreshWatchlist();
+    } catch (err) {
+      console.error("add watchlist failed:", err);
     }
-  }, [activeSession]);
+  }, [refreshWatchlist]);
 
   const handleRemoveWatchlist = useCallback(
-    (symbol: string) => {
-      if (activeSession) {
-        handleSend(`${symbol} 관심종목에서 제거해줘`);
+    async (symbol: string) => {
+      try {
+        await removeWatchlistItem(symbol);
+        await refreshWatchlist();
+      } catch (err) {
+        console.error("remove watchlist failed:", err);
       }
     },
-    [activeSession],
+    [refreshWatchlist],
   );
 
   const handleDeleteSession = useCallback(
