@@ -9,14 +9,10 @@ from datetime import datetime, timezone
 from langchain_core.tools import tool
 
 from infra.logging_config import get_logger
-from nodes.fetch_news import (
-    _build_en_query,
-    _build_ko_query,
-    _classify_tickers,
-    _is_kr_ticker,
-)
+from nodes.fetch_news import _build_en_query, _build_ko_query
 from schemas.news import NewsItem, NewsSnapshot
 from tools.sources import alphavantage, finnhub, googlenews, naver
+from tools.sources.classifier import classify_tickers
 
 log = get_logger("news_previews")
 
@@ -77,13 +73,15 @@ async def fetch_news_previews(
     tickers = tickers or []
     coros: list = []
 
-    buckets = await _classify_tickers(tickers)
+    buckets = await classify_tickers(tickers)
     kr_tickers = buckets["kr_stock"]
     us_tickers = buckets["us_stock"]
     crypto_tickers = buckets["crypto"]
 
     # English Google News (ticker-based query for better results)
-    en_query = _build_en_query(crypto_tickers + us_tickers + kr_tickers)
+    en_query = await _build_en_query(
+        crypto_tickers, us_tickers + kr_tickers
+    )
     if en_query:
         coros.append(googlenews.search_google_news(en_query, lang="en", limit=5))
     elif query.strip():
@@ -96,7 +94,11 @@ async def fetch_news_previews(
 
     # Naver (Korean)
     if lang == "ko" and query:
-        coros.append(naver.search_naver_news(query, display=5))
+        coros.append(
+            naver.search_naver_news(
+                query, display=5, is_crypto=bool(crypto_tickers)
+            )
+        )
 
     # Finnhub + AV for US tickers
     if us_tickers:

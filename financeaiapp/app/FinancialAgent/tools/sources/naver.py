@@ -41,17 +41,14 @@ def _strip_html(text: str) -> str:
     )
 
 
-_CRYPTO_TERMS = {"BTC", "ETH", "SOL", "XRP", "DOGE", "비트코인", "이더리움", "솔라나", "리플", "도지"}
-
-
-async def search_naver_news(query: str, display: int = 10) -> NewsSnapshot:
+async def search_naver_news(
+    query: str, display: int = 10, is_crypto: bool = False
+) -> NewsSnapshot:
     """Search Korean financial news via Naver.
 
-    Appends context keywords based on whether the query looks crypto-related
-    or traditional finance.
+    The caller decides whether the query is crypto-related (via `is_crypto`)
+    since classification is done once upstream with OKX's live instrument list.
     """
-    tokens = set(query.upper().split())
-    is_crypto = bool(tokens & _CRYPTO_TERMS)
     if is_crypto:
         finance_query = f"{query} 코인 OR 암호화폐 OR 가상자산"
     else:

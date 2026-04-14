@@ -1,4 +1,5 @@
 """OKX crypto price adapter (public API, no key)."""
+import asyncio
 from datetime import datetime, timezone
 
 import httpx
@@ -15,12 +16,29 @@ CANDLES_URL = "https://www.okx.com/api/v5/market/candles"
 INSTRUMENTS_URL = "https://www.okx.com/api/v5/public/instruments"
 
 _crypto_symbols_cache: set[str] | None = None
+_instruments_lock: asyncio.Lock | None = None
+
+
+def _get_instruments_lock() -> asyncio.Lock:
+    global _instruments_lock
+    if _instruments_lock is None:
+        _instruments_lock = asyncio.Lock()
+    return _instruments_lock
 
 
 async def is_crypto_symbol(symbol: str) -> bool:
-    """Check if symbol is a valid OKX spot crypto (vs USDT). Cached in-process."""
+    """Check if symbol is a valid OKX spot crypto (vs USDT).
+
+    Cached in-process. Concurrent callers share one HTTP request via
+    an asyncio.Lock. On failure, does NOT poison the cache — next call retries.
+    """
     global _crypto_symbols_cache
-    if _crypto_symbols_cache is None:
+    if _crypto_symbols_cache is not None:
+        return symbol.upper() in _crypto_symbols_cache
+
+    async with _get_instruments_lock():
+        if _crypto_symbols_cache is not None:
+            return symbol.upper() in _crypto_symbols_cache
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 r = await client.get(INSTRUMENTS_URL, params={"instType": "SPOT"})
@@ -33,7 +51,7 @@ async def is_crypto_symbol(symbol: str) -> bool:
                 }
         except Exception as e:
             log.warning("okx.instruments.failed", error=str(e))
-            _crypto_symbols_cache = set()
+            return False  # transient — do not cache the failure
     return symbol.upper() in _crypto_symbols_cache
 
 

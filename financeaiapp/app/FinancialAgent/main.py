@@ -68,13 +68,13 @@ async def invoke(payload, context):
     if action == "add_watchlist":
         from datetime import datetime, timezone
         from storage.ddb import put_item
-        from tools.watchlist import _detect_category
+        from tools.sources.classifier import classify_ticker
         symbol = (payload.get("symbol") or "").strip().upper()
         category = (payload.get("category") or "").strip()
         if not symbol:
             yield {"event": "error", "message": "Missing symbol"}
             return
-        category = category or await _detect_category(symbol)
+        category = category or await classify_ticker(symbol)
         put_item(f"WATCH#{symbol}", {
             "symbol": symbol,
             "category": category,

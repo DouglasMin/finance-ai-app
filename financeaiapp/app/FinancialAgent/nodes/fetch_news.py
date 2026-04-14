@@ -19,52 +19,25 @@ from typing import Any
 
 from infra.logging_config import get_logger
 from schemas.news import NewsItem, NewsSnapshot
-from tools.sources import alphavantage, finnhub, googlenews, naver, okx
+from tools.sources import alphavantage, coingecko, finnhub, googlenews, naver
+from tools.sources.classifier import classify_tickers
 
 log = get_logger("fetch_news_node")
 
 
-def _is_kr_ticker(ticker: str) -> bool:
-    """Korean stock codes are 6-digit numeric."""
-    return ticker.isdigit() and len(ticker) == 6
-
-
-async def _classify_tickers(tickers: list[str]) -> dict[str, list[str]]:
-    """Classify tickers into {crypto, us_stock, kr_stock, fx} via OKX lookup."""
-    buckets: dict[str, list[str]] = {
-        "crypto": [], "us_stock": [], "kr_stock": [], "fx": [],
-    }
-    for t in tickers:
-        u = t.upper().strip()
-        if "/" in u:
-            buckets["fx"].append(t)
-        elif _is_kr_ticker(u):
-            buckets["kr_stock"].append(t)
-        elif u.endswith("-USDT") or u.endswith("-USD") or await okx.is_crypto_symbol(u):
-            buckets["crypto"].append(t)
-        else:
-            buckets["us_stock"].append(t)
-    return buckets
-
-
-_TICKER_NAMES: dict[str, str] = {
-    "BTC": "Bitcoin", "ETH": "Ethereum", "SOL": "Solana", "XRP": "XRP Ripple",
-    "DOGE": "Dogecoin", "ADA": "Cardano", "DOT": "Polkadot", "LINK": "Chainlink",
-    "AVAX": "Avalanche", "MATIC": "Polygon", "TRX": "Tron", "LTC": "Litecoin",
-    "ATOM": "Cosmos", "NEAR": "NEAR Protocol", "APT": "Aptos", "ARB": "Arbitrum",
-    "OP": "Optimism",
-}
-
-
-def _build_en_query(tickers: list[str]) -> str:
-    """Build an English search query from tickers using full asset names."""
+async def _build_en_query(
+    crypto_tickers: list[str], other_tickers: list[str]
+) -> str:
+    """Build an English query — crypto gets full name from CoinGecko,
+    other tickers are used as-is (Alpha Vantage / equity tickers are
+    already globally searchable).
+    """
     parts: list[str] = []
-    for t in tickers[:3]:
-        name = _TICKER_NAMES.get(t.upper())
-        if name:
-            parts.append(f"{name} {t.upper()}")
-        else:
-            parts.append(t.upper())
+    for t in crypto_tickers[:3]:
+        name = await coingecko.get_coin_name(t)
+        parts.append(f"{name} {t.upper()}" if name else t.upper())
+    for t in other_tickers[: max(0, 3 - len(parts))]:
+        parts.append(t.upper())
     return " ".join(parts) if parts else ""
 
 
@@ -82,18 +55,19 @@ async def fetch_news_node(state: dict) -> dict:
 
     coros: list[Any] = []
 
-    buckets = await _classify_tickers(tickers)
+    buckets = await classify_tickers(tickers)
     kr_tickers = buckets["kr_stock"]
     us_tickers = buckets["us_stock"]
     crypto_tickers = buckets["crypto"]
 
-    has_global_asset = bool(crypto_tickers or us_tickers)
     has_kr_asset = bool(kr_tickers)
 
     # Google News: always fetch English for quality global coverage,
     # plus Korean when relevant. English query uses ticker names
     # (not user's Korean text) to guarantee good search results.
-    en_query = _build_en_query(crypto_tickers + us_tickers + kr_tickers)
+    en_query = await _build_en_query(
+        crypto_tickers, us_tickers + kr_tickers
+    )
     ko_query = _build_ko_query(query, tickers)
 
     # English Google News — always fetch if we have any tickers or query
@@ -116,11 +90,11 @@ async def fetch_news_node(state: dict) -> dict:
     # Always use ticker-based query — raw query can be a full briefing prompt.
     if (user_lang == "ko" or kr_tickers) and tickers:
         naver_q = " ".join(tickers[:3])
-        if crypto_tickers:
-            naver_q += " 코인 OR 암호화폐"
-        else:
-            naver_q += " 주식 OR 증시"
-        coros.append(naver.search_naver_news(naver_q, display=5))
+        coros.append(
+            naver.search_naver_news(
+                naver_q, display=5, is_crypto=bool(crypto_tickers)
+            )
+        )
 
     # Supplementary: US ticker-specific news + sentiment scoring
     if us_tickers:
@@ -131,7 +105,10 @@ async def fetch_news_node(state: dict) -> dict:
 
     if not coros:
         log.warning(
-            "fetch_news_node.no_sources", query=query, tickers=tickers, lang=lang
+            "fetch_news_node.no_sources",
+            query=query,
+            tickers=tickers,
+            lang=user_lang,
         )
         return {
             "news_data": NewsSnapshot(fetched_at=datetime.now(timezone.utc))

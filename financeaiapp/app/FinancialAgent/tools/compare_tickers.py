@@ -12,7 +12,8 @@ from datetime import datetime, timedelta, timezone
 from langchain_core.tools import tool
 
 from infra.logging_config import get_logger
-from nodes.fetch_market import _categorize, _fetch_one
+from nodes.fetch_market import _fetch_one
+from tools.sources.classifier import classify_ticker
 from schemas.market import MarketQuote
 from tools.sources import okx, pykrx_adapter, frankfurter
 
@@ -23,7 +24,7 @@ _SPARKLINE_DAYS = 7
 
 async def _fetch_history(ticker: str) -> list[float]:
     """Fetch sparkline history for a ticker. Returns empty list on failure."""
-    category = await _categorize(ticker)
+    category = await classify_ticker(ticker)
     try:
         if category == "crypto":
             return await okx.get_crypto_history(ticker, days=_SPARKLINE_DAYS)

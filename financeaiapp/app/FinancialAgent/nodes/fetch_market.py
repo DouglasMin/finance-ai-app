@@ -5,32 +5,19 @@ category detection, runs them in parallel with asyncio.gather, and returns
 a MarketSnapshot (with partial-failure tolerance).
 """
 import asyncio
-import re
 from datetime import datetime, timezone
 from typing import Any
 
 from infra.logging_config import get_logger
 from schemas.market import MarketQuote, MarketSnapshot
 from tools.sources import alphavantage, frankfurter, okx, pykrx_adapter
+from tools.sources.classifier import classify_ticker
 
 log = get_logger("fetch_market_node")
 
-async def _categorize(ticker: str) -> str:
-    """Category detection — checks OKX instrument list for crypto."""
-    t = ticker.upper().strip()
-    if "/" in t:
-        return "fx"
-    if re.fullmatch(r"\d{6}", t):
-        return "kr_stock"
-    if t.endswith("-USDT") or t.endswith("-USD"):
-        return "crypto"
-    if await okx.is_crypto_symbol(t):
-        return "crypto"
-    return "us_stock"
-
 
 async def _fetch_one(ticker: str) -> MarketQuote | None:
-    category = await _categorize(ticker)
+    category = await classify_ticker(ticker)
     try:
         if category == "crypto":
             return await okx.get_crypto_price(ticker)
