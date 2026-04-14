@@ -40,8 +40,17 @@ export interface InvokePayload {
 export async function addWatchlistItem(symbol: string, category?: string): Promise<void> {
   const payload: InvokePayload = { action: "add_watchlist", symbol, category };
   const controller = new AbortController();
-  for await (const _ of streamInvocation(payload, controller.signal)) {
-    // drain stream
+  const events: Array<Record<string, unknown>> = [];
+  for await (const chunk of streamInvocation(payload, controller.signal)) {
+    events.push(...parseSseFrames(chunk));
+  }
+  const errorEvent = events.find((e) => e.event === "error");
+  if (errorEvent) {
+    const message =
+      typeof errorEvent.message === "string"
+        ? errorEvent.message
+        : "종목을 추가하지 못했습니다.";
+    throw new Error(message);
   }
 }
 

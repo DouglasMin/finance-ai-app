@@ -66,10 +66,20 @@ async def invoke(payload, context):
         return
 
     if action == "add_watchlist":
+        from nodes.fetch_market import _fetch_one
         from tools.watchlist import add_watchlist_item
         symbol = (payload.get("symbol") or "").strip()
         if not symbol:
             yield {"event": "error", "message": "Missing symbol"}
+            return
+        # Validate by fetching a live quote — reject if no data exists
+        quote = await _fetch_one(symbol.upper())
+        if quote is None:
+            yield {
+                "event": "error",
+                "code": "symbol_not_found",
+                "message": f"'{symbol.upper()}'에 대한 시세를 찾을 수 없습니다. 종목 심볼을 확인해 주세요.",
+            }
             return
         sym, _cat = await add_watchlist_item(
             symbol, payload.get("category") or ""

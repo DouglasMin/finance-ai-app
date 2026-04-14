@@ -266,7 +266,10 @@ function App() {
       await addWatchlistItem(symbol.trim().toUpperCase());
       await refreshWatchlist();
     } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "종목을 추가하지 못했습니다.";
       console.error("add watchlist failed:", err);
+      alert(message);
     }
   }, [refreshWatchlist]);
 
