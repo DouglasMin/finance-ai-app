@@ -11,10 +11,17 @@ from schemas.market import MarketQuote
 
 log = get_logger("pykrx")
 
+# KRX 데이터는 KST 기준이므로 UTC 컨테이너에서도 항상 KST로 날짜 계산
+_KST = timezone(timedelta(hours=9))
+
+
+def _kst_now() -> datetime:
+    return datetime.now(tz=_KST)
+
 
 def _fetch_ohlcv_sync(symbol: str) -> dict:
     """Sync pykrx call — run via asyncio.to_thread()."""
-    today_dt = datetime.now()
+    today_dt = _kst_now()
     today = today_dt.strftime("%Y%m%d")
     # Look back 14 days to safely cover weekends/holidays
     start = (today_dt - timedelta(days=14)).strftime("%Y%m%d")
@@ -33,7 +40,7 @@ def _fetch_ohlcv_sync(symbol: str) -> dict:
 
 def _fetch_history_sync(symbol: str, days: int) -> list[float]:
     """Return last `days` close prices from pykrx OHLCV."""
-    today_dt = datetime.now()
+    today_dt = _kst_now()
     today = today_dt.strftime("%Y%m%d")
     # Pull a wider window to guarantee `days` business days
     start = (today_dt - timedelta(days=days * 3)).strftime("%Y%m%d")

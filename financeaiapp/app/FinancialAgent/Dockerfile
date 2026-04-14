@@ -16,7 +16,8 @@ ENV UV_SYSTEM_PYTHON=1 \
     LANGCHAIN_TRACING_V2=true \
     LANGSMITH_TRACING=true \
     LANGCHAIN_PROJECT=financeaiapp \
-    LANGSMITH_PROJECT=financeaiapp
+    LANGSMITH_PROJECT=financeaiapp \
+    AGENTCORE_MEMORY_ID=FinancialAgentMemory-zkfgNCGggq
 
 RUN useradd -m -u 1000 bedrock_agentcore
 
