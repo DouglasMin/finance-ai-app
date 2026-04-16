@@ -14,7 +14,7 @@ function TerminalFrame({ left, middle, right }: TerminalFrameProps) {
     <div className="h-screen flex flex-col font-mono bg-bg text-fg-dim">
       {/* top bar */}
       <div className="bg-fg text-bg px-4 py-1 flex justify-between items-center text-[11px] font-bold uppercase tracking-[0.15em]">
-        <span>FINBOT v0.1 · PHASE 1</span>
+        <span>FINBOT v0.2 · PHASE 2</span>
         <div className="flex items-center gap-4">
           <LlmProviderSelect />
           <span>{now} · ONLINE</span>

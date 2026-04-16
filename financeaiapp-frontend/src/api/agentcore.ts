@@ -27,7 +27,7 @@ import {
 import type { WatchlistItem } from "../types";
 
 export interface InvokePayload {
-  action: "chat" | "briefing" | "list_watchlist" | "list_briefings" | "add_watchlist" | "remove_watchlist" | "get_llm_provider" | "set_llm_provider";
+  action: string;
   session_id?: string;
   message?: string;
   time_of_day?: "AM" | "PM";
@@ -35,6 +35,10 @@ export interface InvokePayload {
   provider?: string;
   symbol?: string;
   category?: string;
+  initial_capital?: number;
+  currency?: string;
+  quantity?: number;
+  limit?: number;
 }
 
 export async function addWatchlistItem(symbol: string, category?: string): Promise<void> {
@@ -286,4 +290,73 @@ export async function fetchBriefings(): Promise<
     tickersCovered: (raw.tickers_covered as string[]) ?? [],
     content: (raw.content as string) ?? "",
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2 — Paper Trading
+// ---------------------------------------------------------------------------
+
+import type { OrderData, PortfolioData, PositionData } from "../types";
+
+export async function fetchPortfolio(): Promise<{
+  portfolio: PortfolioData | null;
+  positions: PositionData[];
+}> {
+  const payload: InvokePayload = { action: "get_portfolio" };
+  const controller = new AbortController();
+  const events: Array<Record<string, unknown>> = [];
+  for await (const chunk of streamInvocation(payload, controller.signal)) {
+    events.push(...parseSseFrames(chunk));
+  }
+  const evt = events.find((e) => e.event === "portfolio");
+  return {
+    portfolio: (evt?.portfolio as PortfolioData) ?? null,
+    positions: (evt?.positions as PositionData[]) ?? [],
+  };
+}
+
+export async function initPortfolio(
+  initialCapital: number,
+  currency: string = "USD",
+): Promise<string> {
+  const payload: InvokePayload = {
+    action: "init_portfolio",
+    initial_capital: initialCapital,
+    currency,
+  };
+  const controller = new AbortController();
+  const events: Array<Record<string, unknown>> = [];
+  for await (const chunk of streamInvocation(payload, controller.signal)) {
+    events.push(...parseSseFrames(chunk));
+  }
+  const evt = events.find((e) => e.event === "portfolio_updated");
+  return (evt?.message as string) ?? "완료";
+}
+
+export async function executeTrade(
+  action: "direct_buy" | "direct_sell",
+  symbol: string,
+  quantity: number,
+): Promise<string> {
+  const payload: InvokePayload = { action, symbol, quantity };
+  const controller = new AbortController();
+  const events: Array<Record<string, unknown>> = [];
+  for await (const chunk of streamInvocation(payload, controller.signal)) {
+    events.push(...parseSseFrames(chunk));
+  }
+  const err = events.find((e) => e.event === "error");
+  if (err) throw new Error((err.message as string) ?? "매매 실패");
+  const evt = events.find((e) => e.event === "trade_result");
+  return (evt?.message as string) ?? "완료";
+}
+
+export async function fetchOrders(limit: number = 20): Promise<OrderData[]> {
+  const payload: InvokePayload = { action: "get_orders", limit };
+  const controller = new AbortController();
+  const events: Array<Record<string, unknown>> = [];
+  for await (const chunk of streamInvocation(payload, controller.signal)) {
+    events.push(...parseSseFrames(chunk));
+  }
+  const evt = events.find((e) => e.event === "orders");
+  return (evt?.items as OrderData[]) ?? [];
 }

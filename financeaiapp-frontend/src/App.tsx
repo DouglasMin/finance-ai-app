@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import TerminalFrame from "./components/layout/TerminalFrame";
 import SessionsPanel from "./components/sessions/SessionsPanel";
 import WatchlistPanel from "./components/watchlist/WatchlistPanel";
+import PortfolioPanel from "./components/portfolio/PortfolioPanel";
 import ChatPanel from "./components/chat/ChatPanel";
 import {
   addWatchlistItem,
@@ -117,6 +118,7 @@ function App() {
   const [isRefreshingWatchlist, setIsRefreshingWatchlist] = useState(false);
   const [briefings, setBriefings] = useState<BriefingSummary[]>([]);
   const [openBriefing, setOpenBriefing] = useState<BriefingSummary | null>(null);
+  const [middleTab, setMiddleTab] = useState<"watchlist" | "portfolio">("watchlist");
 
   const { events, isStreaming, error, sendMessage, reset } = useAgentStream();
 
@@ -322,13 +324,47 @@ function App() {
         />
       }
       middle={
-        <WatchlistPanel
-          items={watchlist}
-          isRefreshing={isRefreshingWatchlist}
-          onRefresh={refreshWatchlist}
-          onAdd={handleAddWatchlist}
-          onRemove={handleRemoveWatchlist}
-        />
+        <div className="flex flex-col h-full">
+          {/* Tab bar */}
+          <div className="flex border-b border-border shrink-0">
+            <button
+              type="button"
+              onClick={() => setMiddleTab("watchlist")}
+              className={`flex-1 text-[10px] py-1.5 cursor-pointer uppercase tracking-wider ${
+                middleTab === "watchlist"
+                  ? "text-fg border-b-2 border-fg font-bold"
+                  : "text-muted hover:text-fg"
+              }`}
+            >
+              Watchlist
+            </button>
+            <button
+              type="button"
+              onClick={() => setMiddleTab("portfolio")}
+              className={`flex-1 text-[10px] py-1.5 cursor-pointer uppercase tracking-wider ${
+                middleTab === "portfolio"
+                  ? "text-fg border-b-2 border-fg font-bold"
+                  : "text-muted hover:text-fg"
+              }`}
+            >
+              Portfolio
+            </button>
+          </div>
+          {/* Tab content */}
+          <div className="flex-1 overflow-y-auto">
+            {middleTab === "watchlist" ? (
+              <WatchlistPanel
+                items={watchlist}
+                isRefreshing={isRefreshingWatchlist}
+                onRefresh={refreshWatchlist}
+                onAdd={handleAddWatchlist}
+                onRemove={handleRemoveWatchlist}
+              />
+            ) : (
+              <PortfolioPanel />
+            )}
+          </div>
+        </div>
       }
       right={
         <ChatPanel

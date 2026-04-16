@@ -57,3 +57,33 @@ export interface BriefingSummary {
   tickersCovered: string[];
   content?: string;
 }
+
+// Phase 2 — Paper Trading
+export interface PortfolioData {
+  initial_capital: number;
+  cash_balance: number;
+  realized_pnl: number;
+  currency: string;
+  created_at: string;
+}
+
+export interface PositionData {
+  symbol: string;
+  category: string;
+  quantity: number;
+  avg_cost: number;
+  currency: string;
+  opened_at: string;
+  updated_at: string;
+}
+
+export interface OrderData {
+  order_id: string;
+  symbol: string;
+  side: "buy" | "sell";
+  quantity: number;
+  price: number;
+  total_cost: number;
+  currency: string;
+  created_at: string;
+}

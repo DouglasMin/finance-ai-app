@@ -150,6 +150,66 @@ async def invoke(payload, context):
         yield {"event": "complete"}
         return
 
+    # ----- Phase 2: Paper Trading direct actions -----
+    if action == "get_portfolio":
+        from storage.trading import get_portfolio as _get_pf, list_positions as _list_pos
+        pf = _get_pf()
+        if not pf:
+            yield {"event": "portfolio", "portfolio": None, "positions": []}
+        else:
+            positions = _list_pos()
+            yield {
+                "event": "portfolio",
+                "portfolio": pf.model_dump(mode="json"),
+                "positions": [p.model_dump(mode="json") for p in positions],
+            }
+        yield {"event": "complete"}
+        return
+
+    if action == "init_portfolio":
+        from tools.trading import init_portfolio as _init_pf
+        capital = payload.get("initial_capital", 10000)
+        currency = payload.get("currency", "USD")
+        result = _init_pf.invoke({"initial_capital": capital, "currency": currency})
+        yield {"event": "portfolio_updated", "message": result}
+        yield {"event": "complete"}
+        return
+
+    if action == "direct_buy":
+        from tools.trading import buy as _buy
+        symbol = (payload.get("symbol") or "").strip()
+        quantity = payload.get("quantity", 0)
+        if not symbol or quantity <= 0:
+            yield {"event": "error", "message": "symbol과 quantity(>0)가 필요합니다."}
+            return
+        result = await _buy.ainvoke({"symbol": symbol, "quantity": quantity})
+        yield {"event": "trade_result", "message": result}
+        yield {"event": "complete"}
+        return
+
+    if action == "direct_sell":
+        from tools.trading import sell as _sell
+        symbol = (payload.get("symbol") or "").strip()
+        quantity = payload.get("quantity", 0)
+        if not symbol:
+            yield {"event": "error", "message": "symbol이 필요합니다."}
+            return
+        result = await _sell.ainvoke({"symbol": symbol, "quantity": float(quantity)})
+        yield {"event": "trade_result", "message": result}
+        yield {"event": "complete"}
+        return
+
+    if action == "get_orders":
+        from storage.trading import list_orders as _list_ord
+        limit = min(max(int(payload.get("limit", 20)), 1), 50)
+        orders = _list_ord(limit=limit)
+        yield {
+            "event": "orders",
+            "items": [o.model_dump(mode="json") for o in orders],
+        }
+        yield {"event": "complete"}
+        return
+
     if action != "chat":
         yield {"event": "error", "message": f"Unknown action: {action}"}
         return
