@@ -248,6 +248,7 @@ async def invoke(payload, context):
             _upos(Position(symbol=symbol, category=category, quantity=quantity, avg_cost=quote.price, currency=quote.currency, opened_at=now, updated_at=now))
         _co(Order(order_id=_nid(), symbol=symbol, side="buy", quantity=quantity, price=quote.price, total_cost=total_cost, currency=quote.currency, created_at=now))
         yield {"event": "trade_result", "message": f"✅ {symbol} {quantity:,.4g}개 매수 @ {_fp(quote.price, quote.currency)}"}
+        yield {"event": "portfolio_update"}
         yield {"event": "complete"}
         return
 
@@ -304,6 +305,7 @@ async def invoke(payload, context):
         _co(Order(order_id=_nid(), symbol=symbol, side="sell", quantity=sell_qty, price=quote.price, total_cost=proceeds, currency=quote.currency, created_at=now))
         pnl_emoji = "🔺" if realized >= 0 else "🔻"
         yield {"event": "trade_result", "message": f"✅ {symbol} {sell_qty:,.4g}개 매도 @ {_fp(quote.price, quote.currency)} | {pnl_emoji} {_fp(realized, quote.currency)}"}
+        yield {"event": "portfolio_update"}
         yield {"event": "complete"}
         return
 
@@ -384,9 +386,10 @@ async def invoke(payload, context):
                             "tool": tool_name,
                             "content": content[:1000],
                         }
+                        # Auto-emit portfolio_update when trading tools complete
+                        if tool_name in ("buy", "buy_amount", "sell"):
+                            yield {"event": "portfolio_update"}
                         # Auto-emit news links from research results
-                        # so they always reach the frontend regardless
-                        # of orchestrator summarization.
                         if tool_name == "research":
                             links = re.findall(
                                 r"\[([^\]]+)\]\((https?://[^\)]+)\)",

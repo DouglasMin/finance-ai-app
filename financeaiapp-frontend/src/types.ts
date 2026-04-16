@@ -3,6 +3,7 @@ export type StreamEventType =
   | "tool_call"
   | "tool_result"
   | "news_links"
+  | "portfolio_update"
   | "assistant"
   | "complete"
   | "error"

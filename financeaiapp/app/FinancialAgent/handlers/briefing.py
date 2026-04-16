@@ -119,6 +119,26 @@ async def run_briefing(
         )
         content = research.content
 
+        # Append portfolio summary if portfolio exists
+        try:
+            from storage.trading import get_portfolio as _get_pf2, list_positions as _list_pos2
+            from infra.formatting import format_price as _fp2
+            pf2 = _get_pf2()
+            if pf2:
+                positions2 = _list_pos2()
+                pos_str = ", ".join(
+                    f"{p.symbol} {p.quantity:,.4g}개"
+                    for p in positions2
+                ) or "없음"
+                content += (
+                    f"\n\n#### 💼 포트폴리오 현황\n"
+                    f"- 현금: {_fp2(pf2.cash_balance, pf2.currency)}\n"
+                    f"- 보유: {pos_str}\n"
+                    f"- 실현 PnL: {_fp2(pf2.realized_pnl, pf2.currency)}"
+                )
+        except Exception:
+            pass
+
         duration_ms = int(
             (datetime.now(timezone.utc) - start).total_seconds() * 1000
         )

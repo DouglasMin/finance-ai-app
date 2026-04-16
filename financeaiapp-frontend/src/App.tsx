@@ -119,6 +119,7 @@ function App() {
   const [briefings, setBriefings] = useState<BriefingSummary[]>([]);
   const [openBriefing, setOpenBriefing] = useState<BriefingSummary | null>(null);
   const [middleTab, setMiddleTab] = useState<"watchlist" | "portfolio">("watchlist");
+  const [portfolioKey, setPortfolioKey] = useState(0);
 
   const { events, isStreaming, error, sendMessage, reset } = useAgentStream();
 
@@ -256,6 +257,13 @@ function App() {
         if (touchedWatchlist) {
           refreshWatchlist();
         }
+        // Auto-refresh portfolio after trading
+        const touchedPortfolio = events.some(
+          (e) => e.type === "portfolio_update"
+        );
+        if (touchedPortfolio) {
+          setPortfolioKey((k) => k + 1);
+        }
         reset();
       }
     }
@@ -361,7 +369,7 @@ function App() {
                 onRemove={handleRemoveWatchlist}
               />
             ) : (
-              <PortfolioPanel />
+              <PortfolioPanel key={portfolioKey} />
             )}
           </div>
         </div>

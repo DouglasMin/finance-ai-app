@@ -14,6 +14,7 @@ const KNOWN_EVENT_TYPES: readonly StreamEventType[] = [
   "session_start",
   "tool_call",
   "tool_result",
+  "portfolio_update",
   "assistant",
   "complete",
   "error",
