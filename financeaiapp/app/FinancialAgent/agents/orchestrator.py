@@ -21,6 +21,7 @@ from tools.preferences import get_preferences, set_preference
 from tools.sessions import list_sessions
 from tools.trading import (
     buy,
+    buy_amount,
     get_order_history,
     get_pnl_summary,
     get_portfolio_summary,
@@ -88,6 +89,7 @@ _TOOLS = [
     get_portfolio_summary,
     get_positions_list,
     buy,
+    buy_amount,
     sell,
     get_order_history,
     get_pnl_summary,

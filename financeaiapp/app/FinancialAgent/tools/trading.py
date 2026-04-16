@@ -260,77 +260,28 @@ async def get_positions_list() -> str:
 # Buy / Sell
 # ---------------------------------------------------------------------------
 
-@tool
-async def buy(
-    symbol: str,
-    quantity: float = 0,
-    amount: float = 0,
-    amount_currency: str = "",
-) -> str:
-    """종목을 가상 매수합니다. 현재 시세로 즉시 체결됩니다.
-
-    quantity 또는 amount 중 하나를 지정합니다.
-    - quantity: 매수 수량 (예: 0.1 = 0.1개)
-    - amount + amount_currency: 특정 통화 기준 매수 금액.
-      예: amount=5000000, amount_currency="KRW" → 500만원어치 매수.
-      amount_currency 미지정 시 포트폴리오 통화로 간주.
-
-    통화가 다른 종목도 자동 환율 변환합니다.
-
-    Args:
-        symbol: 종목 심볼 (BTC, AAPL, 005930 등)
-        quantity: 매수 수량 (amount와 동시 사용 불가)
-        amount: 매수 금액
-        amount_currency: amount의 통화 (USD, KRW). 미지정 시 포트폴리오 통화.
-    """
+async def _execute_buy(sym: str, quantity: float) -> str:
+    """Internal buy logic — shared by buy (quantity) and buy_amount (amount)."""
     portfolio = get_portfolio()
     if not portfolio:
         return "❌ 포트폴리오가 없습니다. 먼저 `init_portfolio`로 생성해 주세요."
 
-    if quantity <= 0 and amount <= 0:
-        return "❌ quantity 또는 amount 중 하나를 지정해 주세요."
-
-    if amount > 0 and not (amount_currency or "").strip():
-        return "❌ amount 사용 시 amount_currency(USD 또는 KRW)를 반드시 지정해 주세요."
-
-    sym = symbol.upper().strip()
-
-    # Classify + fetch price BEFORE touching balances
     category = await classify_ticker(sym)
     quote = await _fetch_one(sym)
     if not quote:
         return f"❌ {sym} 시세를 조회할 수 없습니다."
 
-    # FX conversion: convert quote price to portfolio currency
-    price_in_pf_currency = quote.price
+    # FX: convert quote price to portfolio currency
+    price_in_pf = quote.price
     fx_info = ""
     if quote.currency != portfolio.currency:
-        converted = await _convert_price(
-            quote.price, quote.currency, portfolio.currency
-        )
+        converted = await _convert_price(quote.price, quote.currency, portfolio.currency)
         if converted is None:
-            return (
-                f"❌ 환율 조회 실패: {quote.currency} → {portfolio.currency}\n"
-                f"잠시 후 다시 시도해 주세요."
-            )
-        price_in_pf_currency = converted
-        rate = price_in_pf_currency / quote.price
-        fx_info = f"\n환율: 1 {quote.currency} = {format_price(rate, portfolio.currency)}"
+            return f"❌ 환율 조회 실패: {quote.currency} → {portfolio.currency}"
+        price_in_pf = converted
+        fx_info = f"\n환율: 1 {quote.currency} = {format_price(price_in_pf / quote.price, portfolio.currency)}"
 
-    # Calculate quantity from amount if specified
-    if amount > 0:
-        # Convert amount to portfolio currency if amount_currency differs
-        amt_cur = (amount_currency or "").upper().strip() or portfolio.currency
-        if amt_cur != portfolio.currency:
-            converted_amount = await _convert_price(
-                amount, amt_cur, portfolio.currency
-            )
-            if converted_amount is None:
-                return f"❌ 환율 조회 실패: {amt_cur} → {portfolio.currency}"
-            amount = converted_amount
-        quantity = amount / price_in_pf_currency
-
-    total_cost = price_in_pf_currency * quantity
+    total_cost = price_in_pf * quantity
     if total_cost > portfolio.cash_balance:
         return (
             f"❌ 잔고 부족\n"
@@ -339,55 +290,93 @@ async def buy(
         )
 
     now = datetime.now(timezone.utc)
-
-    # Update portfolio cash
     portfolio.cash_balance -= total_cost
     upsert_portfolio(portfolio)
 
-    # Update or create position (avg cost in portfolio currency)
     existing = get_position(sym)
     if existing:
         new_qty = existing.quantity + quantity
-        new_avg = (
-            (existing.avg_cost * existing.quantity + price_in_pf_currency * quantity)
-            / new_qty
-        )
+        existing.avg_cost = (existing.avg_cost * existing.quantity + price_in_pf * quantity) / new_qty
         existing.quantity = new_qty
-        existing.avg_cost = new_avg
         existing.updated_at = now
         upsert_position(existing)
     else:
         upsert_position(Position(
-            symbol=sym,
-            category=category,
-            quantity=quantity,
-            avg_cost=price_in_pf_currency,
-            currency=portfolio.currency,
-            opened_at=now,
-            updated_at=now,
+            symbol=sym, category=category, quantity=quantity,
+            avg_cost=price_in_pf, currency=portfolio.currency,
+            opened_at=now, updated_at=now,
         ))
 
-    # Record order
     create_order(Order(
-        order_id=new_order_id(),
-        symbol=sym,
-        side="buy",
-        quantity=quantity,
-        price=price_in_pf_currency,
-        total_cost=total_cost,
-        currency=portfolio.currency,
-        created_at=now,
+        order_id=new_order_id(), symbol=sym, side="buy",
+        quantity=quantity, price=price_in_pf, total_cost=total_cost,
+        currency=portfolio.currency, created_at=now,
     ))
-
-    log.info("trade.buy", symbol=sym, qty=quantity, price=price_in_pf_currency)
+    log.info("trade.buy", symbol=sym, qty=quantity, price=price_in_pf)
 
     return (
         f"✅ **{sym}** {quantity:,.6g}개 매수 완료\n"
-        f"체결가: {format_price(price_in_pf_currency, portfolio.currency)}"
+        f"체결가: {format_price(price_in_pf, portfolio.currency)}"
         f" (원가: {format_price(quote.price, quote.currency)}){fx_info}\n"
         f"총액: {format_price(total_cost, portfolio.currency)}\n"
         f"잔고: {format_price(portfolio.cash_balance, portfolio.currency)}"
     )
+
+
+@tool
+async def buy(symbol: str, quantity: float) -> str:
+    """종목을 수량 기준으로 가상 매수합니다. "BTC 0.1개 사줘" 같은 요청에 사용.
+
+    Args:
+        symbol: 종목 심볼 (BTC, AAPL, 005930 등)
+        quantity: 매수 수량 (예: 0.1)
+    """
+    if quantity <= 0:
+        return "❌ 수량은 0보다 커야 합니다."
+    return await _execute_buy(symbol.upper().strip(), quantity)
+
+
+@tool
+async def buy_amount(symbol: str, amount: float, currency: str) -> str:
+    """종목을 금액 기준으로 가상 매수합니다. "BTC 500만원어치 사줘" 같은 요청에 사용.
+    현재가로 수량을 자동 계산합니다.
+
+    Args:
+        symbol: 종목 심볼 (BTC, AAPL, 005930 등)
+        amount: 매수 금액 (예: 5000000)
+        currency: 금액의 통화. "KRW" = 한화/원, "USD" = 달러.
+    """
+    if amount <= 0:
+        return "❌ 금액은 0보다 커야 합니다."
+
+    sym = symbol.upper().strip()
+    portfolio = get_portfolio()
+    if not portfolio:
+        return "❌ 포트폴리오가 없습니다. 먼저 `init_portfolio`로 생성해 주세요."
+
+    # Convert amount to portfolio currency
+    cur = currency.upper().strip()
+    amount_in_pf = amount
+    if cur != portfolio.currency:
+        converted = await _convert_price(amount, cur, portfolio.currency)
+        if converted is None:
+            return f"❌ 환율 조회 실패: {cur} → {portfolio.currency}"
+        amount_in_pf = converted
+
+    # Get price in portfolio currency to calculate quantity
+    quote = await _fetch_one(sym)
+    if not quote:
+        return f"❌ {sym} 시세를 조회할 수 없습니다."
+
+    price_in_pf = quote.price
+    if quote.currency != portfolio.currency:
+        converted = await _convert_price(quote.price, quote.currency, portfolio.currency)
+        if converted is None:
+            return f"❌ 환율 조회 실패: {quote.currency} → {portfolio.currency}"
+        price_in_pf = converted
+
+    quantity = amount_in_pf / price_in_pf
+    return await _execute_buy(sym, quantity)
 
 
 @tool
