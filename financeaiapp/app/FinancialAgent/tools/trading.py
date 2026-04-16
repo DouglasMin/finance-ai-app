@@ -30,8 +30,21 @@ from storage.trading import (
     delete_position,
 )
 from tools.sources.classifier import classify_ticker
+from tools.sources.frankfurter import get_fx_rate
 
 log = get_logger("trading_tools")
+
+
+async def _convert_price(
+    price: float, from_currency: str, to_currency: str
+) -> float | None:
+    """Convert price between currencies via Frankfurter. Returns None on failure."""
+    if from_currency == to_currency:
+        return price
+    rate = await get_fx_rate(from_currency, to_currency)
+    if rate is None:
+        return None
+    return price * rate
 
 
 # ---------------------------------------------------------------------------
@@ -170,19 +183,27 @@ async def get_positions_list() -> str:
 # ---------------------------------------------------------------------------
 
 @tool
-async def buy(symbol: str, quantity: float) -> str:
+async def buy(symbol: str, quantity: float = 0, amount: float = 0) -> str:
     """종목을 가상 매수합니다. 현재 시세로 즉시 체결됩니다.
+
+    quantity 또는 amount 중 하나를 지정합니다.
+    - quantity: 매수 수량 (예: 0.1 = 0.1개)
+    - amount: 포트폴리오 통화 기준 매수 금액 (예: 5000000 = 500만원어치).
+      수량은 현재가로 자동 계산됩니다.
+
+    통화가 다른 종목도 자동 환율 변환합니다 (예: KRW 포트폴리오 → USD 코인).
 
     Args:
         symbol: 종목 심볼 (BTC, AAPL, 005930 등)
-        quantity: 매수 수량
+        quantity: 매수 수량 (amount와 동시 사용 불가)
+        amount: 포트폴리오 통화 기준 매수 금액
     """
     portfolio = get_portfolio()
     if not portfolio:
         return "❌ 포트폴리오가 없습니다. 먼저 `init_portfolio`로 생성해 주세요."
 
-    if quantity <= 0:
-        return "❌ 수량은 0보다 커야 합니다."
+    if quantity <= 0 and amount <= 0:
+        return "❌ quantity 또는 amount 중 하나를 지정해 주세요."
 
     sym = symbol.upper().strip()
 
@@ -192,19 +213,31 @@ async def buy(symbol: str, quantity: float) -> str:
     if not quote:
         return f"❌ {sym} 시세를 조회할 수 없습니다."
 
-    # Currency mismatch guard
+    # FX conversion: convert quote price to portfolio currency
+    price_in_pf_currency = quote.price
+    fx_info = ""
     if quote.currency != portfolio.currency:
-        return (
-            f"❌ 통화 불일치: 포트폴리오는 {portfolio.currency}이지만 "
-            f"{sym}의 통화는 {quote.currency}입니다.\n"
-            f"같은 통화 종목만 매매 가능합니다."
+        converted = await _convert_price(
+            quote.price, quote.currency, portfolio.currency
         )
+        if converted is None:
+            return (
+                f"❌ 환율 조회 실패: {quote.currency} → {portfolio.currency}\n"
+                f"잠시 후 다시 시도해 주세요."
+            )
+        price_in_pf_currency = converted
+        rate = price_in_pf_currency / quote.price
+        fx_info = f"\n환율: 1 {quote.currency} = {format_price(rate, portfolio.currency)}"
 
-    total_cost = quote.price * quantity
+    # Calculate quantity from amount if specified
+    if amount > 0:
+        quantity = amount / price_in_pf_currency
+
+    total_cost = price_in_pf_currency * quantity
     if total_cost > portfolio.cash_balance:
         return (
             f"❌ 잔고 부족\n"
-            f"필요: {format_price(total_cost, quote.currency)}\n"
+            f"필요: {format_price(total_cost, portfolio.currency)}\n"
             f"잔고: {format_price(portfolio.cash_balance, portfolio.currency)}"
         )
 
@@ -214,12 +247,12 @@ async def buy(symbol: str, quantity: float) -> str:
     portfolio.cash_balance -= total_cost
     upsert_portfolio(portfolio)
 
-    # Update or create position (weighted avg cost)
+    # Update or create position (avg cost in portfolio currency)
     existing = get_position(sym)
     if existing:
         new_qty = existing.quantity + quantity
         new_avg = (
-            (existing.avg_cost * existing.quantity + quote.price * quantity)
+            (existing.avg_cost * existing.quantity + price_in_pf_currency * quantity)
             / new_qty
         )
         existing.quantity = new_qty
@@ -231,8 +264,8 @@ async def buy(symbol: str, quantity: float) -> str:
             symbol=sym,
             category=category,
             quantity=quantity,
-            avg_cost=quote.price,
-            currency=quote.currency,
+            avg_cost=price_in_pf_currency,
+            currency=portfolio.currency,
             opened_at=now,
             updated_at=now,
         ))
@@ -243,18 +276,19 @@ async def buy(symbol: str, quantity: float) -> str:
         symbol=sym,
         side="buy",
         quantity=quantity,
-        price=quote.price,
+        price=price_in_pf_currency,
         total_cost=total_cost,
-        currency=quote.currency,
+        currency=portfolio.currency,
         created_at=now,
     ))
 
-    log.info("trade.buy", symbol=sym, qty=quantity, price=quote.price)
+    log.info("trade.buy", symbol=sym, qty=quantity, price=price_in_pf_currency)
 
     return (
-        f"✅ **{sym}** {quantity:,.4g}개 매수 완료\n"
-        f"체결가: {format_price(quote.price, quote.currency)}\n"
-        f"총액: {format_price(total_cost, quote.currency)}\n"
+        f"✅ **{sym}** {quantity:,.6g}개 매수 완료\n"
+        f"체결가: {format_price(price_in_pf_currency, portfolio.currency)}"
+        f" (원가: {format_price(quote.price, quote.currency)}){fx_info}\n"
+        f"총액: {format_price(total_cost, portfolio.currency)}\n"
         f"잔고: {format_price(portfolio.cash_balance, portfolio.currency)}"
     )
 
@@ -295,8 +329,18 @@ async def sell(symbol: str, quantity: float = 0) -> str:
     if not quote:
         return f"❌ {sym} 시세를 조회할 수 없습니다."
 
-    proceeds = quote.price * sell_qty
-    realized = (quote.price - position.avg_cost) * sell_qty
+    # FX conversion: sell price in portfolio currency
+    price_in_pf = quote.price
+    if quote.currency != portfolio.currency:
+        converted = await _convert_price(
+            quote.price, quote.currency, portfolio.currency
+        )
+        if converted is None:
+            return f"❌ 환율 조회 실패: {quote.currency} → {portfolio.currency}"
+        price_in_pf = converted
+
+    proceeds = price_in_pf * sell_qty
+    realized = (price_in_pf - position.avg_cost) * sell_qty
     now = datetime.now(timezone.utc)
 
     # Update portfolio
@@ -313,26 +357,26 @@ async def sell(symbol: str, quantity: float = 0) -> str:
     else:
         delete_position(sym)
 
-    # Record order
+    # Record order (in portfolio currency)
     create_order(Order(
         order_id=new_order_id(),
         symbol=sym,
         side="sell",
         quantity=sell_qty,
-        price=quote.price,
+        price=price_in_pf,
         total_cost=proceeds,
-        currency=quote.currency,
+        currency=portfolio.currency,
         created_at=now,
     ))
 
     pnl_emoji = "🔺" if realized >= 0 else "🔻"
-    log.info("trade.sell", symbol=sym, qty=sell_qty, price=quote.price, pnl=realized)
+    log.info("trade.sell", symbol=sym, qty=sell_qty, price=price_in_pf, pnl=realized)
 
     return (
         f"✅ **{sym}** {sell_qty:,.4g}개 매도 완료\n"
-        f"체결가: {format_price(quote.price, quote.currency)}\n"
-        f"총액: {format_price(proceeds, quote.currency)}\n"
-        f"실현 손익: {pnl_emoji} {format_price(realized, quote.currency)}\n"
+        f"체결가: {format_price(price_in_pf, portfolio.currency)}\n"
+        f"총액: {format_price(proceeds, portfolio.currency)}\n"
+        f"실현 손익: {pnl_emoji} {format_price(realized, portfolio.currency)}\n"
         f"잔고: {format_price(portfolio.cash_balance, portfolio.currency)}"
     )
 

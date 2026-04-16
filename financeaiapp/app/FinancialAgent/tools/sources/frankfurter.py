@@ -37,6 +37,22 @@ async def _fetch_timeseries(
         return response.json()
 
 
+async def get_fx_rate(base: str, quote: str) -> float | None:
+    """Get current FX rate (e.g. USD→KRW = ~1430). Returns None on failure."""
+    key = cache_key("fx_rate", base, quote)
+    cache = market_cache()
+    if key in cache:
+        return cache[key]
+    try:
+        data = await _fetch(base.upper(), quote.upper())
+        rate = float(data["rates"][quote.upper()])
+        cache[key] = rate
+        return rate
+    except Exception as e:
+        log.warning("frankfurter.rate.failed", pair=f"{base}/{quote}", error=str(e))
+        return None
+
+
 async def get_fx_history(
     base: str = "USD", quote: str = "KRW", days: int = 7
 ) -> list[float]:
