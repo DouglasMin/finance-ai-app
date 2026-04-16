@@ -62,6 +62,17 @@ async def _fetch_quotes(symbols: list[str]) -> dict:
     }
 
 
+async def _quote_price_in_currency(
+    quote, target_currency: str
+) -> float | None:
+    """Convert a quote's price to target currency. Returns None on FX failure."""
+    if quote is None:
+        return None
+    if quote.currency == target_currency:
+        return quote.price
+    return await _convert_price(quote.price, quote.currency, target_currency)
+
+
 # ---------------------------------------------------------------------------
 # Price lookup
 # ---------------------------------------------------------------------------
@@ -148,8 +159,11 @@ async def get_portfolio_summary() -> str:
     quotes = await _fetch_quotes([p.symbol for p in positions])
     for pos in positions:
         quote = quotes.get(pos.symbol)
-        if quote:
-            market_val = quote.price * pos.quantity
+        cur_price = await _quote_price_in_currency(
+            quote, portfolio.currency
+        ) if quote else None
+        if cur_price is not None:
+            market_val = cur_price * pos.quantity
             cost_val = pos.avg_cost * pos.quantity
             total_market_value += market_val
             total_unrealized += market_val - cost_val
@@ -199,15 +213,21 @@ async def get_positions_list() -> str:
 
     for pos in positions:
         quote = quotes.get(pos.symbol)
-        cur_price = quote.price if quote else 0
-        pnl = (cur_price - pos.avg_cost) * pos.quantity
-        pnl_pct = ((cur_price / pos.avg_cost - 1) * 100) if pos.avg_cost else 0
+        cur_price = await _quote_price_in_currency(
+            quote, portfolio.currency
+        ) if quote else None
+        if cur_price is not None:
+            pnl = (cur_price - pos.avg_cost) * pos.quantity
+            pnl_pct = ((cur_price / pos.avg_cost - 1) * 100) if pos.avg_cost else 0
+        else:
+            pnl = 0
+            pnl_pct = 0
         emoji = "🔺" if pnl >= 0 else "🔻"
-        price_str = format_price(cur_price, pos.currency) if quote else "N/A"
+        price_str = format_price(cur_price, portfolio.currency) if cur_price else "N/A"
 
         lines.append(
             f"| {pos.symbol} | {pos.quantity:,.4g} "
-            f"| {format_price(pos.avg_cost, pos.currency)} "
+            f"| {format_price(pos.avg_cost, portfolio.currency)} "
             f"| {price_str} "
             f"| {emoji} {pnl_pct:+.2f}% |"
         )
@@ -459,8 +479,11 @@ async def get_pnl_summary() -> str:
     quotes = await _fetch_quotes([p.symbol for p in positions])
     for pos in positions:
         quote = quotes.get(pos.symbol)
-        if quote:
-            total_unrealized += (quote.price - pos.avg_cost) * pos.quantity
+        cur_price = await _quote_price_in_currency(
+            quote, portfolio.currency
+        ) if quote else None
+        if cur_price is not None:
+            total_unrealized += (cur_price - pos.avg_cost) * pos.quantity
         else:
             failed_symbols.append(pos.symbol)
 
