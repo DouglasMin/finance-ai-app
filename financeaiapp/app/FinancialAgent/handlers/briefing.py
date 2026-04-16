@@ -156,6 +156,62 @@ async def run_briefing(
             },
         )
 
+        # Stage 5: save PnL snapshot if portfolio exists
+        try:
+            from nodes.fetch_market import _fetch_one
+            from storage.trading import (
+                get_portfolio as _get_pf,
+                list_positions as _list_pos,
+                save_pnl_snapshot,
+            )
+            from schemas.trading import PnlSnapshot
+            from tools.trading import _convert_price
+
+            pf = _get_pf()
+            if pf:
+                positions = _list_pos()
+                total_market = 0.0
+                total_unrealized = 0.0
+                priced_count = 0
+                failed_symbols: list[str] = []
+                for pos in positions:
+                    try:
+                        quote = await _fetch_one(pos.symbol)
+                        if quote:
+                            price_in_pf = quote.price
+                            if quote.currency != pf.currency:
+                                converted = await _convert_price(
+                                    quote.price, quote.currency, pf.currency
+                                )
+                                if converted:
+                                    price_in_pf = converted
+                            mkt = price_in_pf * pos.quantity
+                            total_market += mkt
+                            total_unrealized += mkt - (pos.avg_cost * pos.quantity)
+                            priced_count += 1
+                        else:
+                            failed_symbols.append(pos.symbol)
+                    except Exception as exc:
+                        failed_symbols.append(pos.symbol)
+                        log.warning("pnl_snapshot.position_failed",
+                                    symbol=pos.symbol, error=str(exc))
+                # Only save if all positions were priced (no partial data)
+                if not failed_symbols:
+                    save_pnl_snapshot(PnlSnapshot(
+                        date=date_str,
+                        total_value=pf.cash_balance + total_market,
+                        cash=pf.cash_balance,
+                        unrealized_pnl=total_unrealized,
+                        realized_pnl=pf.realized_pnl,
+                        positions_count=priced_count,
+                    ))
+                    log.info("pnl_snapshot.saved", date=date_str)
+                else:
+                    log.warning("pnl_snapshot.skipped",
+                                failed=failed_symbols, date=date_str)
+        except Exception as e:
+            log.warning("pnl_snapshot.failed", error=str(e))
+
         log.info(
             "briefing.complete",
             sk=sk,

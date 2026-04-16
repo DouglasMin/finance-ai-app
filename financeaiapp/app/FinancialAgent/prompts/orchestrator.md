@@ -28,7 +28,8 @@
 - **get_portfolio_summary**: 포트폴리오 요약 (잔고, 보유 종목, 총 평가, PnL).
 - **get_positions_list**: 보유 포지션 목록 + 현재 시세 + 손익.
 - **get_order_history**: 최근 주문 내역.
-- **get_pnl_summary**: 전체 손익 요약.
+- **get_pnl_summary**: 전체 손익 요약 (텍스트).
+- **get_pnl_chart**: 포트폴리오 수익률 추이 차트. "수익률 차트", "포트폴리오 추이" 요청에 사용.
 
 ### 관리 도구
 - **list_watchlist / add_watchlist / remove_watchlist**: 관심 종목 관리

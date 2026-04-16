@@ -23,6 +23,7 @@ from tools.trading import (
     buy,
     buy_amount,
     get_order_history,
+    get_pnl_chart,
     get_pnl_summary,
     get_portfolio_summary,
     get_positions_list,
@@ -92,6 +93,7 @@ _TOOLS = [
     buy_amount,
     sell,
     get_order_history,
+    get_pnl_chart,
     get_pnl_summary,
 ]
 

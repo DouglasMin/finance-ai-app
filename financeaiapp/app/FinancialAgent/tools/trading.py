@@ -9,6 +9,7 @@ are not atomic (no conditional expressions) but race conditions are not
 practical in this deployment model.
 """
 import asyncio
+import json
 from datetime import datetime, timezone
 
 from langchain_core.tools import tool
@@ -23,6 +24,7 @@ from storage.trading import (
     get_portfolio,
     get_position,
     list_orders,
+    list_pnl_snapshots,
     list_positions,
     new_order_id,
     upsert_portfolio,
@@ -529,4 +531,67 @@ async def get_pnl_summary() -> str:
     ]
     if failed_symbols:
         lines.append(f"\n⚠️ 시세 조회 실패: {', '.join(failed_symbols)} (해당 종목 제외)")
+    return "\n".join(lines)
+
+
+@tool
+def get_pnl_chart(limit: int = 30) -> str:
+    """포트폴리오 PnL 히스토리를 차트로 반환합니다.
+
+    "수익률 차트 보여줘", "포트폴리오 추이" 같은 요청에 사용합니다.
+    일별 PnL 스냅샷을 기반으로 꺾은선 그래프를 렌더링합니다.
+
+    Args:
+        limit: 조회할 스냅샷 수 (기본 30건, 최대 90건)
+    """
+    portfolio = get_portfolio()
+    if not portfolio:
+        return "포트폴리오가 없습니다."
+
+    snapshots = list_pnl_snapshots(limit=min(max(limit, 1), 90))
+    if not snapshots:
+        return (
+            "PnL 기록이 없습니다. 브리핑이 실행되면 자동으로 일별 스냅샷이 저장됩니다.\n"
+            "내일 아침 브리핑 이후부터 차트를 볼 수 있습니다."
+        )
+
+    if len(snapshots) < 2:
+        s = snapshots[0]
+        return (
+            f"아직 스냅샷이 1건({s.date})만 있습니다. "
+            f"차트는 2일 이상의 데이터가 필요합니다.\n"
+            f"총 자산: {format_price(s.total_value, portfolio.currency)}"
+        )
+
+    # Reverse to oldest → newest (list_pnl_snapshots returns newest first)
+    snapshots = list(reversed(snapshots))
+
+    # Single series: total asset value (PnL is derived from the shape)
+    chart_data = {
+        "type": "pnl",
+        "tickers": ["총 자산"],
+        "series": [{
+            "symbol": "총 자산",
+            "currency": portfolio.currency,
+            "data": [
+                {"time": s.date, "value": float(s.total_value)}
+                for s in snapshots
+            ],
+        }],
+    }
+
+    first = snapshots[0]
+    last = snapshots[-1]
+    change = last.total_value - first.total_value
+    change_pct = (change / first.total_value * 100) if first.total_value > 0 else 0
+    emoji = "🔺" if change >= 0 else "🔻"
+
+    lines = [
+        f"## 📈 포트폴리오 추이 ({first.date} ~ {last.date})",
+        f"- 시작: {format_price(first.total_value, portfolio.currency)}",
+        f"- 현재: {format_price(last.total_value, portfolio.currency)}",
+        f"- 변동: {emoji} {format_price(change, portfolio.currency)} ({change_pct:+.2f}%)",
+        f"- 보유 종목: {last.positions_count}개",
+        f"\n[CHART]\n{json.dumps(chart_data, ensure_ascii=False)}\n[/CHART]",
+    ]
     return "\n".join(lines)
