@@ -19,6 +19,15 @@ from tools.compare_tickers import compare_tickers
 from tools.news_previews import fetch_news_previews
 from tools.preferences import get_preferences, set_preference
 from tools.sessions import list_sessions
+from tools.trading import (
+    buy,
+    get_order_history,
+    get_pnl_summary,
+    get_portfolio_summary,
+    get_positions_list,
+    init_portfolio,
+    sell,
+)
 from tools.watchlist import add_watchlist, list_watchlist, remove_watchlist
 from tools.watchlist_report import watchlist_report
 
@@ -54,20 +63,31 @@ def _load_prompt() -> str:
 
 
 _TOOLS = [
+    # Phase 1 — Analysis
     research,
     compare_tickers,
     fetch_news_previews,
     watchlist_report,
     compare_analysis,
     watchlist_changes,
+    # Phase 1 — Watchlist
     list_watchlist,
     add_watchlist,
     remove_watchlist,
+    # Phase 1 — Briefing / Preferences / Sessions
     get_briefings,
     get_briefing,
     get_preferences,
     set_preference,
     list_sessions,
+    # Phase 2 — Paper Trading
+    init_portfolio,
+    get_portfolio_summary,
+    get_positions_list,
+    buy,
+    sell,
+    get_order_history,
+    get_pnl_summary,
 ]
 
 
