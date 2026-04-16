@@ -19,12 +19,32 @@ function formatPrice(price: number, currency: string): string {
   return `$${price.toFixed(8)}`;
 }
 
+// Hard-coded rate for display toggle — in production this should come from
+// the backend's Frankfurter adapter, but for instant UI switching a cached
+// rate is acceptable. Refreshed on each portfolio load.
+let _cachedFxRate: number | null = null;
+
+function convert(
+  value: number,
+  fromCurrency: string,
+  toCurrency: string,
+): number {
+  if (fromCurrency === toCurrency) return value;
+  if (!_cachedFxRate) return value;
+  if (fromCurrency === "USD" && toCurrency === "KRW")
+    return value * _cachedFxRate;
+  if (fromCurrency === "KRW" && toCurrency === "USD")
+    return value / _cachedFxRate;
+  return value;
+}
+
 function PortfolioPanel() {
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
   const [positions, setPositions] = useState<PositionData[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
+  const [displayCurrency, setDisplayCurrency] = useState<"USD" | "KRW">("USD");
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -32,11 +52,27 @@ function PortfolioPanel() {
       const { portfolio: pf, positions: pos } = await fetchPortfolio();
       setPortfolio(pf);
       setPositions(pos);
+      if (pf) setDisplayCurrency(pf.currency as "USD" | "KRW");
     } catch (err) {
       console.error("portfolio fetch failed:", err);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  // Fetch FX rate on mount for display conversion
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch(
+          "https://api.frankfurter.dev/v1/latest?base=USD&symbols=KRW",
+        );
+        const data = await r.json();
+        _cachedFxRate = data?.rates?.KRW ?? null;
+      } catch {
+        _cachedFxRate = null;
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -51,8 +87,11 @@ function PortfolioPanel() {
       alert("올바른 금액을 입력하세요.");
       return;
     }
+    const cur = confirm("USD로 생성합니다. KRW로 하려면 '취소'를 누르세요.")
+      ? "USD"
+      : "KRW";
     try {
-      await initPortfolio(capital, "USD");
+      await initPortfolio(capital, cur);
       await refresh();
     } catch (err) {
       alert(err instanceof Error ? err.message : "초기화 실패");
@@ -70,7 +109,11 @@ function PortfolioPanel() {
       return;
     }
     try {
-      const result = await executeTrade("direct_buy", symbol.trim().toUpperCase(), qty);
+      const result = await executeTrade(
+        "direct_buy",
+        symbol.trim().toUpperCase(),
+        qty,
+      );
       alert(result);
       await refresh();
     } catch (err) {
@@ -116,6 +159,13 @@ function PortfolioPanel() {
     }
   }, [showOrders]);
 
+  /** Display a value in the selected display currency */
+  const dp = (value: number, fromCurrency?: string) => {
+    const from = fromCurrency ?? portfolio?.currency ?? "USD";
+    const converted = convert(value, from, displayCurrency);
+    return formatPrice(converted, displayCurrency);
+  };
+
   // No portfolio yet
   if (!portfolio) {
     return (
@@ -139,35 +189,42 @@ function PortfolioPanel() {
 
   return (
     <div className="p-3 flex flex-col gap-2 text-[11px]">
-      {/* Header */}
+      {/* Header + currency toggle */}
       <div className="flex justify-between items-center">
         <span className="text-[10px] text-muted uppercase tracking-widest">
           ── portfolio ──
         </span>
-        <button
-          type="button"
-          onClick={refresh}
-          disabled={loading}
-          aria-label="포트폴리오 새로고침"
-          className="text-[10px] text-fg hover:text-up cursor-pointer disabled:opacity-50"
-        >
-          {loading ? "..." : "↻"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              setDisplayCurrency((c) => (c === "USD" ? "KRW" : "USD"))
+            }
+            className="text-[9px] text-muted hover:text-fg cursor-pointer border border-border-dim rounded px-1.5 py-0.5"
+          >
+            {displayCurrency === "USD" ? "$ USD" : "₩ KRW"}
+          </button>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={loading}
+            aria-label="포트폴리오 새로고침"
+            className="text-[10px] text-fg hover:text-up cursor-pointer disabled:opacity-50"
+          >
+            {loading ? "..." : "↻"}
+          </button>
+        </div>
       </div>
 
       {/* Balance card */}
       <div className="border border-border-dim rounded px-2 py-1.5 space-y-0.5">
         <div className="flex justify-between">
           <span className="text-muted">현금</span>
-          <span className="text-fg">
-            {formatPrice(portfolio.cash_balance, portfolio.currency)}
-          </span>
+          <span className="text-fg">{dp(portfolio.cash_balance)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-muted">실현 PnL</span>
-          <span className={pnlColor}>
-            {formatPrice(pnl, portfolio.currency)}
-          </span>
+          <span className={pnlColor}>{dp(pnl)}</span>
         </div>
       </div>
 
@@ -203,7 +260,7 @@ function PortfolioPanel() {
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] text-muted">
-                  avg {formatPrice(pos.avg_cost, pos.currency)}
+                  avg {dp(pos.avg_cost, pos.currency)}
                 </span>
                 <button
                   type="button"
@@ -246,7 +303,7 @@ function PortfolioPanel() {
                   })}
                 </span>
                 <span className="text-muted">
-                  {formatPrice(o.price, o.currency)}
+                  {dp(o.price, o.currency)}
                 </span>
               </div>
             ))
