@@ -82,7 +82,9 @@ async def get_price(symbol: str) -> str:
     """종목의 현재 시세를 빠르게 조회합니다. 뉴스/분석 없이 가격만 반환합니다.
 
     "BTC 현재가?", "삼성전자 시세", "ETH 얼마야" 같은 단순 시세 질문에 사용합니다.
-    분석이나 뉴스가 필요하면 research 도구를 사용하세요.
+    포트폴리오가 있으면 포트폴리오 통화 기준 환산가도 함께 반환합니다.
+    "500만원어치면 몇 개?" 같은 금액↔수량 환산 질문에도 이 결과를 사용하세요.
+    직접 계산하지 마세요.
 
     Args:
         symbol: 종목 심볼 (BTC, AAPL, 005930 등)
@@ -104,10 +106,29 @@ async def get_price(symbol: str) -> str:
             f"저가: {format_price(quote.low, quote.currency)}"
         )
 
-    return (
-        f"**{sym}** {format_price(quote.price, quote.currency)}{change_str}"
-        f"{range_str}"
-    )
+    lines = [
+        f"**{sym}** {format_price(quote.price, quote.currency)}{change_str}",
+    ]
+    if range_str:
+        lines.append(range_str)
+
+    # 포트폴리오 통화와 다르면 환산가 + 금액별 수량 참고표 추가
+    portfolio = get_portfolio()
+    if portfolio and quote.currency != portfolio.currency:
+        converted = await _convert_price(
+            quote.price, quote.currency, portfolio.currency
+        )
+        if converted:
+            lines.append(
+                f"\n포트폴리오 통화 환산: {format_price(converted, portfolio.currency)}/개"
+            )
+            for amt in [1_000_000, 5_000_000, 10_000_000]:
+                qty = amt / converted
+                lines.append(
+                    f"  {format_price(amt, portfolio.currency)}어치 ≈ {qty:,.6g}개"
+                )
+
+    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
