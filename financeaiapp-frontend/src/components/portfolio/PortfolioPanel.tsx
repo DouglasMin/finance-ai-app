@@ -59,29 +59,43 @@ function PortfolioPanel() {
     }
   }, [refresh]);
 
-  const handleTrade = useCallback(
-    async (side: "direct_buy" | "direct_sell") => {
-      const symbol = prompt("종목 심볼 (예: BTC, AAPL)");
-      if (!symbol) return;
+  const handleBuy = useCallback(async () => {
+    const symbol = prompt("매수할 종목 심볼 (예: BTC, AAPL)");
+    if (!symbol) return;
+    const qtyStr = prompt("매수 수량");
+    if (qtyStr === null) return;
+    const qty = parseFloat(qtyStr);
+    if (isNaN(qty) || qty <= 0) {
+      alert("올바른 수량을 입력하세요.");
+      return;
+    }
+    try {
+      const result = await executeTrade("direct_buy", symbol.trim().toUpperCase(), qty);
+      alert(result);
+      await refresh();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "매수 실패");
+    }
+  }, [refresh]);
+
+  const handleSell = useCallback(
+    async (symbol: string, maxQty: number) => {
       const qtyStr = prompt(
-        side === "direct_buy" ? "매수 수량" : "매도 수량 (0 = 전량)",
+        `${symbol} 매도 수량 (보유: ${maxQty.toLocaleString("en", { maximumFractionDigits: 6 })}, 전량 매도는 0)`,
+        "0",
       );
       if (qtyStr === null) return;
       const qty = parseFloat(qtyStr);
-      if (isNaN(qty) || (side === "direct_buy" && qty <= 0)) {
+      if (isNaN(qty) || qty < 0) {
         alert("올바른 수량을 입력하세요.");
         return;
       }
       try {
-        const result = await executeTrade(
-          side,
-          symbol.trim().toUpperCase(),
-          qty,
-        );
+        const result = await executeTrade("direct_sell", symbol, qty);
         alert(result);
         await refresh();
       } catch (err) {
-        alert(err instanceof Error ? err.message : "매매 실패");
+        alert(err instanceof Error ? err.message : "매도 실패");
       }
     },
     [refresh],
@@ -157,23 +171,14 @@ function PortfolioPanel() {
         </div>
       </div>
 
-      {/* Trade buttons */}
-      <div className="flex gap-1">
-        <button
-          type="button"
-          onClick={() => handleTrade("direct_buy")}
-          className="flex-1 text-[10px] py-1 bg-up/20 text-up rounded cursor-pointer hover:bg-up/30"
-        >
-          매수
-        </button>
-        <button
-          type="button"
-          onClick={() => handleTrade("direct_sell")}
-          className="flex-1 text-[10px] py-1 bg-down/20 text-down rounded cursor-pointer hover:bg-down/30"
-        >
-          매도
-        </button>
-      </div>
+      {/* Buy button */}
+      <button
+        type="button"
+        onClick={handleBuy}
+        className="w-full text-[10px] py-1 bg-up/20 text-up rounded cursor-pointer hover:bg-up/30"
+      >
+        + 매수
+      </button>
 
       {/* Positions */}
       <div className="text-[10px] text-muted uppercase tracking-widest mt-1">
@@ -186,7 +191,7 @@ function PortfolioPanel() {
           {positions.map((pos) => (
             <div
               key={pos.symbol}
-              className="flex justify-between items-center px-1 py-0.5 hover:bg-bg-alt rounded"
+              className="flex justify-between items-center px-1 py-0.5 hover:bg-bg-alt rounded group"
             >
               <div>
                 <span className="text-fg font-bold">{pos.symbol}</span>
@@ -196,10 +201,17 @@ function PortfolioPanel() {
                   })}
                 </span>
               </div>
-              <div className="text-right text-[10px]">
-                <div className="text-muted">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted">
                   avg {formatPrice(pos.avg_cost, pos.currency)}
-                </div>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleSell(pos.symbol, pos.quantity)}
+                  className="text-[9px] text-down opacity-0 group-hover:opacity-100 hover:bg-down/20 px-1.5 py-0.5 rounded cursor-pointer transition-opacity"
+                >
+                  매도
+                </button>
               </div>
             </div>
           ))}
