@@ -25,6 +25,7 @@ from tools.trading import (
     get_pnl_summary,
     get_portfolio_summary,
     get_positions_list,
+    get_price,
     init_portfolio,
     sell,
 )
@@ -80,6 +81,8 @@ _TOOLS = [
     get_preferences,
     set_preference,
     list_sessions,
+    # Price lookup (lightweight — no news/analysis)
+    get_price,
     # Phase 2 — Paper Trading
     init_portfolio,
     get_portfolio_summary,

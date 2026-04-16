@@ -63,6 +63,43 @@ async def _fetch_quotes(symbols: list[str]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Price lookup
+# ---------------------------------------------------------------------------
+
+@tool
+async def get_price(symbol: str) -> str:
+    """종목의 현재 시세를 빠르게 조회합니다. 뉴스/분석 없이 가격만 반환합니다.
+
+    "BTC 현재가?", "삼성전자 시세", "ETH 얼마야" 같은 단순 시세 질문에 사용합니다.
+    분석이나 뉴스가 필요하면 research 도구를 사용하세요.
+
+    Args:
+        symbol: 종목 심볼 (BTC, AAPL, 005930 등)
+    """
+    sym = symbol.upper().strip()
+    quote = await _fetch_one(sym)
+    if not quote:
+        return f"❌ {sym} 시세를 조회할 수 없습니다."
+
+    change_str = ""
+    if quote.change_pct is not None:
+        emoji = "🔺" if quote.change_pct >= 0 else "🔻"
+        change_str = f" {emoji} {quote.change_pct:+.2f}%"
+
+    range_str = ""
+    if quote.high is not None and quote.low is not None:
+        range_str = (
+            f"\n고가: {format_price(quote.high, quote.currency)} / "
+            f"저가: {format_price(quote.low, quote.currency)}"
+        )
+
+    return (
+        f"**{sym}** {format_price(quote.price, quote.currency)}{change_str}"
+        f"{range_str}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # Portfolio init / view
 # ---------------------------------------------------------------------------
 
