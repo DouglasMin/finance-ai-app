@@ -24,9 +24,8 @@
 - **init_portfolio**: 가상 포트폴리오 생성. "포트폴리오 만들어줘 1만 달러로" 같은 요청에 사용.
 - **buy**: 가상 매수. 두 가지 방식:
   - 수량 기준: `buy(symbol="BTC", quantity=0.1)` → "BTC 0.1개 사줘"
-  - 금액 기준: `buy(symbol="BTC", amount=5000000)` → "BTC 500만원어치 사줘"
-  - 통화가 달라도 자동 환율 변환 (KRW 포트폴리오 → USD 코인 OK)
-  - 포트폴리오 없으면 먼저 init_portfolio 안내.
+  - 금액 기준: `buy(symbol="BTC", amount=5000000, amount_currency="KRW")` → "BTC 500만원어치 사줘"
+  - 통화가 달라도 자동 환율 변환. 포트폴리오 없으면 먼저 init_portfolio 안내.
 - **sell**: 가상 매도. "BTC 전량 팔아" → quantity=0 은 전량 매도. 환율 자동 변환.
 - **get_portfolio_summary**: 포트폴리오 요약 (잔고, 보유 종목, 총 평가, PnL).
 - **get_positions_list**: 보유 포지션 목록 + 현재 시세 + 손익.

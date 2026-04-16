@@ -261,20 +261,27 @@ async def get_positions_list() -> str:
 # ---------------------------------------------------------------------------
 
 @tool
-async def buy(symbol: str, quantity: float = 0, amount: float = 0) -> str:
+async def buy(
+    symbol: str,
+    quantity: float = 0,
+    amount: float = 0,
+    amount_currency: str = "",
+) -> str:
     """종목을 가상 매수합니다. 현재 시세로 즉시 체결됩니다.
 
     quantity 또는 amount 중 하나를 지정합니다.
     - quantity: 매수 수량 (예: 0.1 = 0.1개)
-    - amount: 포트폴리오 통화 기준 매수 금액 (예: 5000000 = 500만원어치).
-      수량은 현재가로 자동 계산됩니다.
+    - amount + amount_currency: 특정 통화 기준 매수 금액.
+      예: amount=5000000, amount_currency="KRW" → 500만원어치 매수.
+      amount_currency 미지정 시 포트폴리오 통화로 간주.
 
-    통화가 다른 종목도 자동 환율 변환합니다 (예: KRW 포트폴리오 → USD 코인).
+    통화가 다른 종목도 자동 환율 변환합니다.
 
     Args:
         symbol: 종목 심볼 (BTC, AAPL, 005930 등)
         quantity: 매수 수량 (amount와 동시 사용 불가)
-        amount: 포트폴리오 통화 기준 매수 금액
+        amount: 매수 금액
+        amount_currency: amount의 통화 (USD, KRW). 미지정 시 포트폴리오 통화.
     """
     portfolio = get_portfolio()
     if not portfolio:
@@ -282,6 +289,9 @@ async def buy(symbol: str, quantity: float = 0, amount: float = 0) -> str:
 
     if quantity <= 0 and amount <= 0:
         return "❌ quantity 또는 amount 중 하나를 지정해 주세요."
+
+    if amount > 0 and not (amount_currency or "").strip():
+        return "❌ amount 사용 시 amount_currency(USD 또는 KRW)를 반드시 지정해 주세요."
 
     sym = symbol.upper().strip()
 
@@ -309,6 +319,15 @@ async def buy(symbol: str, quantity: float = 0, amount: float = 0) -> str:
 
     # Calculate quantity from amount if specified
     if amount > 0:
+        # Convert amount to portfolio currency if amount_currency differs
+        amt_cur = (amount_currency or "").upper().strip() or portfolio.currency
+        if amt_cur != portfolio.currency:
+            converted_amount = await _convert_price(
+                amount, amt_cur, portfolio.currency
+            )
+            if converted_amount is None:
+                return f"❌ 환율 조회 실패: {amt_cur} → {portfolio.currency}"
+            amount = converted_amount
         quantity = amount / price_in_pf_currency
 
     total_cost = price_in_pf_currency * quantity
