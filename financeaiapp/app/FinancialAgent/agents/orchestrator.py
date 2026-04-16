@@ -31,6 +31,13 @@ from tools.trading import (
     init_portfolio,
     sell,
 )
+from tools.strategy import (
+    create_strategy,
+    get_strategy_log,
+    list_all_strategies,
+    remove_strategy_tool,
+    toggle_strategy,
+)
 from tools.watchlist import add_watchlist, list_watchlist, remove_watchlist
 from tools.watchlist_report import watchlist_report
 
@@ -95,6 +102,12 @@ _TOOLS = [
     get_order_history,
     get_pnl_chart,
     get_pnl_summary,
+    # Phase 2 — Strategy
+    create_strategy,
+    list_all_strategies,
+    remove_strategy_tool,
+    toggle_strategy,
+    get_strategy_log,
 ]
 
 

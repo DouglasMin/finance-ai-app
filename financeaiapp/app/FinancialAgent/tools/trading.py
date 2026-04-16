@@ -381,30 +381,18 @@ async def buy_amount(symbol: str, amount: float, currency: str) -> str:
     return await _execute_buy(sym, quantity)
 
 
-@tool
-async def sell(symbol: str, quantity: float = 0) -> str:
-    """종목을 가상 매도합니다. 현재 시세로 즉시 체결됩니다.
-
-    Args:
-        symbol: 종목 심볼
-        quantity: 매도 수량. 0이면 전량 매도.
-    """
+async def _execute_sell(sym: str, quantity: float) -> str:
+    """Internal sell logic — shared by sell tool and strategy execute."""
     portfolio = get_portfolio()
     if not portfolio:
         return "❌ 포트폴리오가 없습니다."
 
-    if quantity < 0:
-        return "❌ 수량은 0 이상이어야 합니다. 전량 매도는 0을 입력하세요."
-
-    sym = symbol.upper().strip()
     position = get_position(sym)
     if not position:
         return f"❌ {sym} 보유 포지션이 없습니다."
 
-    # 0 = sell all
     sell_qty = quantity if quantity > 0 else position.quantity
 
-    # Float tolerance for "sell all by exact number"
     if sell_qty > position.quantity + 1e-9:
         return (
             f"❌ 보유 수량 초과\n"
@@ -467,6 +455,19 @@ async def sell(symbol: str, quantity: float = 0) -> str:
         f"실현 손익: {pnl_emoji} {format_price(realized, portfolio.currency)}\n"
         f"잔고: {format_price(portfolio.cash_balance, portfolio.currency)}"
     )
+
+
+@tool
+async def sell(symbol: str, quantity: float = 0) -> str:
+    """종목을 가상 매도합니다. 현재 시세로 즉시 체결됩니다.
+
+    Args:
+        symbol: 종목 심볼
+        quantity: 매도 수량. 0이면 전량 매도.
+    """
+    if quantity < 0:
+        return "❌ 수량은 0 이상이어야 합니다. 전량 매도는 0을 입력하세요."
+    return await _execute_sell(symbol.upper().strip(), quantity)
 
 
 # ---------------------------------------------------------------------------

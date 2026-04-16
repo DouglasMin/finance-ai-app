@@ -150,6 +150,13 @@ async def invoke(payload, context):
         yield {"event": "complete"}
         return
 
+    if action == "strategy_monitor":
+        from agents.strategy_graph import run_strategy_monitor
+        result = await run_strategy_monitor()
+        yield {"event": "strategy_monitor_result", **result}
+        yield {"event": "complete"}
+        return
+
     # ----- Phase 2: Paper Trading direct actions -----
     if action == "get_portfolio":
         from storage.trading import get_portfolio as _get_pf, list_positions as _list_pos

@@ -61,6 +61,17 @@ functions:
           input:
             time_of_day: "PM"
 
+  strategyMonitorProxy:
+    handler: src/strategy-monitor-proxy.handler
+    name: financeaiapp-strategy-monitor
+    description: "EventBridge → AgentCore strategy monitor (every 30 min)"
+    timeout: 120
+    memorySize: 256
+    events:
+      # Every 30 minutes during market hours (KST 09:00-23:00 = UTC 00:00-14:00)
+      - schedule:
+          rate: cron(0/30 0-14 * * ? *)
+
 # =============================================================================
 # CloudFormation Resources
 # =============================================================================

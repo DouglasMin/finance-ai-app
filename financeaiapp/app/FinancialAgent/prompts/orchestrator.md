@@ -31,6 +31,13 @@
 - **get_pnl_summary**: 전체 손익 요약 (텍스트).
 - **get_pnl_chart**: 포트폴리오 수익률 추이 차트. "수익률 차트", "포트폴리오 추이" 요청에 사용.
 
+### 전략 도구
+- **create_strategy**: 조건 기반 전략 등록. "BTC가 $100K 넘으면 알려줘" → `create_strategy(name="btc_100k", target_symbol="BTC", condition_type="price_above", threshold=100000, action="alert")`
+- **list_all_strategies**: 등록된 전략 전체 목록 + 상태.
+- **remove_strategy_tool**: 전략 삭제.
+- **toggle_strategy**: 전략 활성화/비활성화.
+- **get_strategy_log**: 전략 실행 이력.
+
 ### 관리 도구
 - **list_watchlist / add_watchlist / remove_watchlist**: 관심 종목 관리
 - **get_briefings / get_briefing**: 과거 브리핑 조회
