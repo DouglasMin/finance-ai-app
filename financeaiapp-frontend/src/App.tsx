@@ -326,7 +326,7 @@ function App() {
       middle={
         <div className="flex flex-col h-full">
           {/* Tab bar */}
-          <div className="flex border-b border-border shrink-0">
+          <div className="flex border-b border-border-dim shrink-0">
             <button
               type="button"
               onClick={() => setMiddleTab("watchlist")}

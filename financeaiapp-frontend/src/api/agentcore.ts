@@ -26,8 +26,23 @@ import {
 } from "../env";
 import type { WatchlistItem } from "../types";
 
+export type ActionType =
+  | "chat"
+  | "briefing"
+  | "list_watchlist"
+  | "list_briefings"
+  | "add_watchlist"
+  | "remove_watchlist"
+  | "get_llm_provider"
+  | "set_llm_provider"
+  | "get_portfolio"
+  | "init_portfolio"
+  | "direct_buy"
+  | "direct_sell"
+  | "get_orders";
+
 export interface InvokePayload {
-  action: string;
+  action: ActionType;
   session_id?: string;
   message?: string;
   time_of_day?: "AM" | "PM";

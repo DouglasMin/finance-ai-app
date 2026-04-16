@@ -8,8 +8,13 @@ import {
 import type { OrderData, PortfolioData, PositionData } from "../../types";
 
 function formatPrice(price: number, currency: string): string {
-  if (currency === "KRW") return `₩${price.toLocaleString("en", { maximumFractionDigits: 0 })}`;
-  if (price >= 1) return `$${price.toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (currency === "KRW")
+    return `₩${price.toLocaleString("en", { maximumFractionDigits: 0 })}`;
+  if (price >= 1)
+    return `$${price.toLocaleString("en", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
   if (price >= 0.01) return `$${price.toFixed(4)}`;
   return `$${price.toFixed(8)}`;
 }
@@ -19,7 +24,6 @@ function PortfolioPanel() {
   const [positions, setPositions] = useState<PositionData[]>([]);
   const [orders, setOrders] = useState<OrderData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showTradeForm, setShowTradeForm] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -60,7 +64,7 @@ function PortfolioPanel() {
       const symbol = prompt("종목 심볼 (예: BTC, AAPL)");
       if (!symbol) return;
       const qtyStr = prompt(
-        side === "direct_buy" ? "매수 수량" : "매도 수량 (0 = 전량)"
+        side === "direct_buy" ? "매수 수량" : "매도 수량 (0 = 전량)",
       );
       if (qtyStr === null) return;
       const qty = parseFloat(qtyStr);
@@ -69,25 +73,34 @@ function PortfolioPanel() {
         return;
       }
       try {
-        const result = await executeTrade(side, symbol.trim().toUpperCase(), qty);
+        const result = await executeTrade(
+          side,
+          symbol.trim().toUpperCase(),
+          qty,
+        );
         alert(result);
         await refresh();
       } catch (err) {
         alert(err instanceof Error ? err.message : "매매 실패");
       }
     },
-    [refresh]
+    [refresh],
   );
 
-  const handleLoadOrders = useCallback(async () => {
+  const handleToggleOrders = useCallback(async () => {
+    if (showOrders) {
+      setShowOrders(false);
+      setOrders([]);
+      return;
+    }
     try {
       const items = await fetchOrders(20);
       setOrders(items);
       setShowOrders(true);
     } catch (err) {
-      console.error("orders fetch failed:", err);
+      alert(err instanceof Error ? err.message : "주문 내역 로딩 실패");
     }
-  }, []);
+  }, [showOrders]);
 
   // No portfolio yet
   if (!portfolio) {
@@ -121,7 +134,8 @@ function PortfolioPanel() {
           type="button"
           onClick={refresh}
           disabled={loading}
-          className="text-[9px] text-muted hover:text-fg cursor-pointer disabled:opacity-50"
+          aria-label="포트폴리오 새로고침"
+          className="text-[10px] text-fg hover:text-up cursor-pointer disabled:opacity-50"
         >
           {loading ? "..." : "↻"}
         </button>
@@ -169,36 +183,33 @@ function PortfolioPanel() {
         <div className="text-muted text-[11px] italic">보유 종목 없음</div>
       ) : (
         <div className="flex flex-col gap-0.5">
-          {positions.map((pos) => {
-            const pnlPct = pos.avg_cost
-              ? (((pos.avg_cost - pos.avg_cost) / pos.avg_cost) * 100)
-              : 0;
-            return (
-              <div
-                key={pos.symbol}
-                className="flex justify-between items-center px-1 py-0.5 hover:bg-bg-alt rounded"
-              >
-                <div>
-                  <span className="text-fg font-bold">{pos.symbol}</span>
-                  <span className="text-muted ml-1">
-                    {pos.quantity.toLocaleString("en", { maximumFractionDigits: 4 })}
-                  </span>
-                </div>
-                <div className="text-right text-[10px]">
-                  <div className="text-muted">
-                    avg {formatPrice(pos.avg_cost, pos.currency)}
-                  </div>
+          {positions.map((pos) => (
+            <div
+              key={pos.symbol}
+              className="flex justify-between items-center px-1 py-0.5 hover:bg-bg-alt rounded"
+            >
+              <div>
+                <span className="text-fg font-bold">{pos.symbol}</span>
+                <span className="text-muted ml-1">
+                  {pos.quantity.toLocaleString("en", {
+                    maximumFractionDigits: 4,
+                  })}
+                </span>
+              </div>
+              <div className="text-right text-[10px]">
+                <div className="text-muted">
+                  avg {formatPrice(pos.avg_cost, pos.currency)}
                 </div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       )}
 
       {/* Orders toggle */}
       <button
         type="button"
-        onClick={handleLoadOrders}
+        onClick={handleToggleOrders}
         className="text-[10px] text-muted hover:text-fg cursor-pointer mt-1 text-left"
       >
         {showOrders ? "▾ 주문 내역 접기" : "▸ 주문 내역 보기"}
@@ -217,7 +228,10 @@ function PortfolioPanel() {
                   <span className={o.side === "buy" ? "text-up" : "text-down"}>
                     {o.side === "buy" ? "매수" : "매도"}
                   </span>{" "}
-                  {o.symbol} {o.quantity.toLocaleString("en", { maximumFractionDigits: 4 })}
+                  {o.symbol}{" "}
+                  {o.quantity.toLocaleString("en", {
+                    maximumFractionDigits: 4,
+                  })}
                 </span>
                 <span className="text-muted">
                   {formatPrice(o.price, o.currency)}
