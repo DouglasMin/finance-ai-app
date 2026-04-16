@@ -5,10 +5,22 @@ the same USER# PK — see spec section 6.
 """
 import os
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Any, Optional
 
 import boto3
 from boto3.dynamodb.conditions import Key
+
+
+def _convert_floats(obj: Any) -> Any:
+    """Recursively convert float → Decimal for DynamoDB compatibility."""
+    if isinstance(obj, float):
+        return Decimal(str(obj))
+    if isinstance(obj, dict):
+        return {k: _convert_floats(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_convert_floats(i) for i in obj]
+    return obj
 
 TABLE_NAME = os.environ.get("DDB_TABLE", "financial-bot")
 USER_PK = "USER#me"
@@ -26,12 +38,12 @@ def get_table():
 
 
 def put_item(sk: str, attrs: dict) -> None:
-    item = {
+    item = _convert_floats({
         "PK": USER_PK,
         "SK": sk,
         **attrs,
         "updated_at": datetime.now(timezone.utc).isoformat(),
-    }
+    })
     get_table().put_item(Item=item)
 
 
