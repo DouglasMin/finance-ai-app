@@ -344,6 +344,8 @@ export async function initPortfolio(
   for await (const chunk of streamInvocation(payload, controller.signal)) {
     events.push(...parseSseFrames(chunk));
   }
+  const err = events.find((e) => e.event === "error");
+  if (err) throw new Error((err.message as string) ?? "포트폴리오 생성 실패");
   const evt = events.find((e) => e.event === "portfolio_updated");
   return (evt?.message as string) ?? "완료";
 }

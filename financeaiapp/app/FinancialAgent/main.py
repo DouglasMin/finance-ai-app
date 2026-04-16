@@ -167,35 +167,136 @@ async def invoke(payload, context):
         return
 
     if action == "init_portfolio":
-        from tools.trading import init_portfolio as _init_pf
-        capital = payload.get("initial_capital", 10000)
-        currency = payload.get("currency", "USD")
-        result = _init_pf.invoke({"initial_capital": capital, "currency": currency})
-        yield {"event": "portfolio_updated", "message": result}
+        from datetime import datetime as _dt, timezone as _tz
+        from schemas.trading import Portfolio
+        from storage.trading import upsert_portfolio
+        from infra.formatting import format_price as _fp
+        capital = float(payload.get("initial_capital", 10000))
+        currency = str(payload.get("currency", "USD"))
+        if currency not in ("USD", "KRW"):
+            yield {"event": "error", "message": f"지원하지 않는 통화: {currency}"}
+            return
+        if capital <= 0:
+            yield {"event": "error", "message": "초기 자금은 0보다 커야 합니다."}
+            return
+        pf = Portfolio(
+            initial_capital=capital,
+            cash_balance=capital,
+            realized_pnl=0.0,
+            currency=currency,
+            created_at=_dt.now(_tz.utc),
+        )
+        upsert_portfolio(pf)
+        yield {
+            "event": "portfolio_updated",
+            "message": f"✅ 포트폴리오 생성 완료 — {_fp(capital, currency)}",
+        }
         yield {"event": "complete"}
         return
 
     if action == "direct_buy":
-        from tools.trading import buy as _buy
-        symbol = (payload.get("symbol") or "").strip()
-        quantity = payload.get("quantity", 0)
+        from nodes.fetch_market import _fetch_one as _fq
+        from tools.sources.classifier import classify_ticker as _ct
+        from schemas.trading import Order, Position
+        from storage.trading import (
+            get_portfolio as _gp, upsert_portfolio as _up,
+            get_position as _gpos, upsert_position as _upos,
+            create_order as _co, new_order_id as _nid,
+        )
+        from infra.formatting import format_price as _fp
+        from datetime import datetime as _dt, timezone as _tz
+
+        symbol = (payload.get("symbol") or "").strip().upper()
+        quantity = float(payload.get("quantity", 0))
         if not symbol or quantity <= 0:
             yield {"event": "error", "message": "symbol과 quantity(>0)가 필요합니다."}
             return
-        result = await _buy.ainvoke({"symbol": symbol, "quantity": quantity})
-        yield {"event": "trade_result", "message": result}
+        portfolio = _gp()
+        if not portfolio:
+            yield {"event": "error", "message": "포트폴리오가 없습니다. 먼저 생성해 주세요."}
+            return
+        category = await _ct(symbol)
+        quote = await _fq(symbol)
+        if not quote:
+            yield {"event": "error", "message": f"'{symbol}' 시세를 조회할 수 없습니다."}
+            return
+        if quote.currency != portfolio.currency:
+            yield {"event": "error", "message": f"통화 불일치: 포트폴리오({portfolio.currency}) ≠ 종목({quote.currency})"}
+            return
+        total_cost = quote.price * quantity
+        if total_cost > portfolio.cash_balance:
+            yield {"event": "error", "message": f"잔고 부족: 필요 {_fp(total_cost, quote.currency)}, 잔고 {_fp(portfolio.cash_balance, portfolio.currency)}"}
+            return
+        now = _dt.now(_tz.utc)
+        portfolio.cash_balance -= total_cost
+        _up(portfolio)
+        existing = _gpos(symbol)
+        if existing:
+            new_qty = existing.quantity + quantity
+            existing.avg_cost = (existing.avg_cost * existing.quantity + quote.price * quantity) / new_qty
+            existing.quantity = new_qty
+            existing.updated_at = now
+            _upos(existing)
+        else:
+            _upos(Position(symbol=symbol, category=category, quantity=quantity, avg_cost=quote.price, currency=quote.currency, opened_at=now, updated_at=now))
+        _co(Order(order_id=_nid(), symbol=symbol, side="buy", quantity=quantity, price=quote.price, total_cost=total_cost, currency=quote.currency, created_at=now))
+        yield {"event": "trade_result", "message": f"✅ {symbol} {quantity:,.4g}개 매수 @ {_fp(quote.price, quote.currency)}"}
         yield {"event": "complete"}
         return
 
     if action == "direct_sell":
-        from tools.trading import sell as _sell
-        symbol = (payload.get("symbol") or "").strip()
-        quantity = payload.get("quantity", 0)
+        from nodes.fetch_market import _fetch_one as _fq
+        from schemas.trading import Order
+        from storage.trading import (
+            get_portfolio as _gp, upsert_portfolio as _up,
+            get_position as _gpos, upsert_position as _upos,
+            delete_position as _dp,
+            create_order as _co, new_order_id as _nid,
+        )
+        from infra.formatting import format_price as _fp
+        from datetime import datetime as _dt, timezone as _tz
+
+        symbol = (payload.get("symbol") or "").strip().upper()
+        quantity = float(payload.get("quantity", 0))
         if not symbol:
             yield {"event": "error", "message": "symbol이 필요합니다."}
             return
-        result = await _sell.ainvoke({"symbol": symbol, "quantity": float(quantity)})
-        yield {"event": "trade_result", "message": result}
+        portfolio = _gp()
+        if not portfolio:
+            yield {"event": "error", "message": "포트폴리오가 없습니다."}
+            return
+        position = _gpos(symbol)
+        if not position:
+            yield {"event": "error", "message": f"'{symbol}' 보유 포지션이 없습니다."}
+            return
+        if quantity < 0:
+            yield {"event": "error", "message": "수량은 0 이상이어야 합니다."}
+            return
+        sell_qty = quantity if quantity > 0 else position.quantity
+        if sell_qty > position.quantity + 1e-9:
+            yield {"event": "error", "message": f"보유 수량 초과: 보유 {position.quantity:,.4g}, 요청 {sell_qty:,.4g}"}
+            return
+        sell_qty = min(sell_qty, position.quantity)
+        quote = await _fq(symbol)
+        if not quote:
+            yield {"event": "error", "message": f"'{symbol}' 시세를 조회할 수 없습니다."}
+            return
+        proceeds = quote.price * sell_qty
+        realized = (quote.price - position.avg_cost) * sell_qty
+        now = _dt.now(_tz.utc)
+        portfolio.cash_balance += proceeds
+        portfolio.realized_pnl += realized
+        _up(portfolio)
+        remaining = max(0.0, position.quantity - sell_qty)
+        if remaining > 1e-9:
+            position.quantity = remaining
+            position.updated_at = now
+            _upos(position)
+        else:
+            _dp(symbol)
+        _co(Order(order_id=_nid(), symbol=symbol, side="sell", quantity=sell_qty, price=quote.price, total_cost=proceeds, currency=quote.currency, created_at=now))
+        pnl_emoji = "🔺" if realized >= 0 else "🔻"
+        yield {"event": "trade_result", "message": f"✅ {symbol} {sell_qty:,.4g}개 매도 @ {_fp(quote.price, quote.currency)} | {pnl_emoji} {_fp(realized, quote.currency)}"}
         yield {"event": "complete"}
         return
 
