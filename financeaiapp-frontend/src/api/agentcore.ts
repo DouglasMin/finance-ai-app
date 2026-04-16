@@ -4,6 +4,23 @@
  * Dev: uses `/api/invocations` via Vite proxy to local agentcore dev server.
  * Prod: uses AWS SDK with Cognito Identity Pool guest credentials and SigV4.
  */
+
+/** Retry wrapper for cold-start resilience. */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 2,
+  delayMs = 2000,
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
+    }
+  }
+  throw new Error("unreachable");
+}
 import {
   BedrockAgentCoreClient,
   InvokeAgentRuntimeCommand,
@@ -248,6 +265,7 @@ export async function* streamInvocation(
  *   data: {"event": "complete"}
  */
 export async function fetchWatchlist(): Promise<WatchlistItem[]> {
+  return withRetry(async () => {
   const payload: InvokePayload = { action: "list_watchlist" };
   const controller = new AbortController();
 
@@ -272,6 +290,7 @@ export async function fetchWatchlist(): Promise<WatchlistItem[]> {
     volume: raw.volume,
     sparkline: raw.sparkline,
   }));
+  });
 }
 
 /**
@@ -286,6 +305,7 @@ export async function fetchBriefings(): Promise<
     content: string;
   }>
 > {
+  return withRetry(async () => {
   const payload: InvokePayload = { action: "list_briefings" };
   const controller = new AbortController();
 
@@ -305,6 +325,7 @@ export async function fetchBriefings(): Promise<
     tickersCovered: (raw.tickers_covered as string[]) ?? [],
     content: (raw.content as string) ?? "",
   }));
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -317,17 +338,19 @@ export async function fetchPortfolio(): Promise<{
   portfolio: PortfolioData | null;
   positions: PositionData[];
 }> {
-  const payload: InvokePayload = { action: "get_portfolio" };
-  const controller = new AbortController();
-  const events: Array<Record<string, unknown>> = [];
-  for await (const chunk of streamInvocation(payload, controller.signal)) {
-    events.push(...parseSseFrames(chunk));
-  }
-  const evt = events.find((e) => e.event === "portfolio");
-  return {
-    portfolio: (evt?.portfolio as PortfolioData) ?? null,
-    positions: (evt?.positions as PositionData[]) ?? [],
-  };
+  return withRetry(async () => {
+    const payload: InvokePayload = { action: "get_portfolio" };
+    const controller = new AbortController();
+    const events: Array<Record<string, unknown>> = [];
+    for await (const chunk of streamInvocation(payload, controller.signal)) {
+      events.push(...parseSseFrames(chunk));
+    }
+    const evt = events.find((e) => e.event === "portfolio");
+    return {
+      portfolio: (evt?.portfolio as PortfolioData) ?? null,
+      positions: (evt?.positions as PositionData[]) ?? [],
+    };
+  });
 }
 
 export async function initPortfolio(
