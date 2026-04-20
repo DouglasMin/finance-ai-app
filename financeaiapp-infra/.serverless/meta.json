@@ -53,6 +53,24 @@
                     ]
                   }
                 ]
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "ssm:GetParameter"
+                ],
+                "Resource": [
+                  "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-bot-token",
+                  "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-signing-secret",
+                  "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-ops-channel"
+                ]
+              },
+              {
+                "Effect": "Allow",
+                "Action": [
+                  "kms:Decrypt"
+                ],
+                "Resource": "arn:aws:kms:ap-northeast-2:612529367436:alias/aws/ssm"
               }
             ]
           }
@@ -72,6 +90,12 @@
               "Type": "AWS::Logs::LogGroup",
               "Properties": {
                 "LogGroupName": "/aws/lambda/financeaiapp-strategy-monitor"
+              }
+            },
+            "SlackPosterLogGroup": {
+              "Type": "AWS::Logs::LogGroup",
+              "Properties": {
+                "LogGroupName": "/aws/lambda/financeaiapp-slack-poster"
               }
             },
             "IamRoleLambdaExecution": {
@@ -121,6 +145,9 @@
                             },
                             {
                               "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-strategy-monitor:*"
+                            },
+                            {
+                              "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-slack-poster:*"
                             }
                           ]
                         },
@@ -135,6 +162,9 @@
                             },
                             {
                               "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-strategy-monitor:*:*"
+                            },
+                            {
+                              "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-slack-poster:*:*"
                             }
                           ]
                         },
@@ -167,6 +197,24 @@
                               ]
                             }
                           ]
+                        },
+                        {
+                          "Effect": "Allow",
+                          "Action": [
+                            "ssm:GetParameter"
+                          ],
+                          "Resource": [
+                            "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-bot-token",
+                            "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-signing-secret",
+                            "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-ops-channel"
+                          ]
+                        },
+                        {
+                          "Effect": "Allow",
+                          "Action": [
+                            "kms:Decrypt"
+                          ],
+                          "Resource": "arn:aws:kms:ap-northeast-2:612529367436:alias/aws/ssm"
                         }
                       ]
                     }
@@ -193,7 +241,7 @@
               "Properties": {
                 "Code": {
                   "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-                  "S3Key": "serverless/financeaiapp-infra/prod/1776697040127-2026-04-20T14:57:20.127Z/financeaiapp-infra.zip"
+                  "S3Key": "serverless/financeaiapp-infra/prod/1776699236365-2026-04-20T15:33:56.365Z/financeaiapp-infra.zip"
                 },
                 "Handler": "src/briefing-proxy.handler",
                 "Runtime": "nodejs22.x",
@@ -223,7 +271,7 @@
               "Properties": {
                 "Code": {
                   "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-                  "S3Key": "serverless/financeaiapp-infra/prod/1776697040127-2026-04-20T14:57:20.127Z/financeaiapp-infra.zip"
+                  "S3Key": "serverless/financeaiapp-infra/prod/1776699236365-2026-04-20T15:33:56.365Z/financeaiapp-infra.zip"
                 },
                 "Handler": "src/strategy-monitor-proxy.handler",
                 "Runtime": "nodejs22.x",
@@ -248,26 +296,70 @@
                 "StrategyMonitorProxyLogGroup"
               ]
             },
-            "BriefingProxyLambdaVersionzaiD5WQEIjZmmAHByuxdNUja7J7o5no99kVAJiAU4": {
+            "SlackPosterLambdaFunction": {
+              "Type": "AWS::Lambda::Function",
+              "Properties": {
+                "Code": {
+                  "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
+                  "S3Key": "serverless/financeaiapp-infra/prod/1776699236365-2026-04-20T15:33:56.365Z/financeaiapp-infra.zip"
+                },
+                "Handler": "src/slack-poster.handler",
+                "Runtime": "nodejs22.x",
+                "FunctionName": "financeaiapp-slack-poster",
+                "MemorySize": 256,
+                "Timeout": 30,
+                "Description": "SNS AlertTopic → Slack channel forwarder",
+                "Environment": {
+                  "Variables": {
+                    "AGENTCORE_RUNTIME_ARN": "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki",
+                    "SLACK_TOKEN_PARAM": "<REDACTED>",
+                    "SLACK_CHANNEL_PARAM": "/financeaiapp/slack-ops-channel",
+                    "PROJECT_TAG": "financeaiapp",
+                    "NODE_OPTIONS": "--enable-source-maps"
+                  }
+                },
+                "Role": {
+                  "Fn::GetAtt": [
+                    "IamRoleLambdaExecution",
+                    "Arn"
+                  ]
+                }
+              },
+              "DependsOn": [
+                "SlackPosterLogGroup"
+              ]
+            },
+            "BriefingProxyLambdaVersionK56O3HxZiCN1yAF9RVSpU00cIoJqLP9QMDsWqVmPYLg": {
               "Type": "AWS::Lambda::Version",
               "DeletionPolicy": "Retain",
               "Properties": {
                 "FunctionName": {
                   "Ref": "BriefingProxyLambdaFunction"
                 },
-                "CodeSha256": "eCU1t7JAVugWnlzWnj/RYYrrYHv1a7uj+F977DIKEXQ=",
+                "CodeSha256": "Fr+3s2Y/VK5E79ZaOzVoiaG1lbvKmXapZTEyOLBSeLw=",
                 "Description": "EventBridge → AgentCore briefing invocation proxy"
               }
             },
-            "StrategyMonitorProxyLambdaVersionWHjllraeBtB659Ozm2dFDV011x6ZjWM0aTlp8dto": {
+            "StrategyMonitorProxyLambdaVersionTTmHuOUMOf4ajMGLhRPk3vt0FG0A7e3R2ayM84Tr0k": {
               "Type": "AWS::Lambda::Version",
               "DeletionPolicy": "Retain",
               "Properties": {
                 "FunctionName": {
                   "Ref": "StrategyMonitorProxyLambdaFunction"
                 },
-                "CodeSha256": "eCU1t7JAVugWnlzWnj/RYYrrYHv1a7uj+F977DIKEXQ=",
+                "CodeSha256": "Fr+3s2Y/VK5E79ZaOzVoiaG1lbvKmXapZTEyOLBSeLw=",
                 "Description": "EventBridge → AgentCore strategy monitor (every 30 min)"
+              }
+            },
+            "SlackPosterLambdaVersionb1YUGEAgIWVJLkUqb70qMTHLnW6yruwKl3qQTuOQ": {
+              "Type": "AWS::Lambda::Version",
+              "DeletionPolicy": "Retain",
+              "Properties": {
+                "FunctionName": {
+                  "Ref": "SlackPosterLambdaFunction"
+                },
+                "CodeSha256": "Fr+3s2Y/VK5E79ZaOzVoiaG1lbvKmXapZTEyOLBSeLw=",
+                "Description": "SNS AlertTopic → Slack channel forwarder"
               }
             },
             "BriefingProxyEventsRuleSchedule1": {
@@ -644,6 +736,37 @@
                 "Endpoint": "dongik.dev73@gmail.com"
               }
             },
+            "AlertSlackSubscription": {
+              "Type": "AWS::SNS::Subscription",
+              "Properties": {
+                "TopicArn": {
+                  "Ref": "AlertTopic"
+                },
+                "Protocol": "lambda",
+                "Endpoint": {
+                  "Fn::GetAtt": [
+                    "SlackPosterLambdaFunction",
+                    "Arn"
+                  ]
+                }
+              }
+            },
+            "AlertSlackLambdaPermission": {
+              "Type": "AWS::Lambda::Permission",
+              "Properties": {
+                "FunctionName": {
+                  "Fn::GetAtt": [
+                    "SlackPosterLambdaFunction",
+                    "Arn"
+                  ]
+                },
+                "Action": "lambda:InvokeFunction",
+                "Principal": "sns.amazonaws.com",
+                "SourceArn": {
+                  "Ref": "AlertTopic"
+                }
+              }
+            },
             "DailyCostAlarm": {
               "Type": "AWS::CloudWatch::Alarm",
               "Properties": {
@@ -889,7 +1012,7 @@
             "BriefingProxyLambdaFunctionQualifiedArn": {
               "Description": "Current Lambda function version",
               "Value": {
-                "Ref": "BriefingProxyLambdaVersionzaiD5WQEIjZmmAHByuxdNUja7J7o5no99kVAJiAU4"
+                "Ref": "BriefingProxyLambdaVersionK56O3HxZiCN1yAF9RVSpU00cIoJqLP9QMDsWqVmPYLg"
               },
               "Export": {
                 "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
@@ -898,10 +1021,19 @@
             "StrategyMonitorProxyLambdaFunctionQualifiedArn": {
               "Description": "Current Lambda function version",
               "Value": {
-                "Ref": "StrategyMonitorProxyLambdaVersionWHjllraeBtB659Ozm2dFDV011x6ZjWM0aTlp8dto"
+                "Ref": "StrategyMonitorProxyLambdaVersionTTmHuOUMOf4ajMGLhRPk3vt0FG0A7e3R2ayM84Tr0k"
               },
               "Export": {
                 "Name": "sls-financeaiapp-infra-prod-StrategyMonitorProxyLambdaFunctionQualifiedArn"
+              }
+            },
+            "SlackPosterLambdaFunctionQualifiedArn": {
+              "Description": "Current Lambda function version",
+              "Value": {
+                "Ref": "SlackPosterLambdaVersionb1YUGEAgIWVJLkUqb70qMTHLnW6yruwKl3qQTuOQ"
+              },
+              "Export": {
+                "Name": "sls-financeaiapp-infra-prod-SlackPosterLambdaFunctionQualifiedArn"
               }
             },
             "IdentityPoolId": {
@@ -945,7 +1077,15 @@
         "esbuild": {
           "bundle": true,
           "minify": true,
-          "target": "node22"
+          "target": "node22",
+          "platform": "node",
+          "format": "esm",
+          "banner": {
+            "js": "import{createRequire as __cr}from'module';const require=__cr(import.meta.url);import{fileURLToPath as __fu}from'url';import{dirname as __dn}from'path';const __filename=__fu(import.meta.url);const __dirname=__dn(__filename);"
+          },
+          "outExtension": {
+            ".js": ".mjs"
+          }
         }
       },
       "functions": {
@@ -984,7 +1124,7 @@
           "memory": 256,
           "runtime": "nodejs22.x",
           "vpc": {},
-          "versionLogicalId": "BriefingProxyLambdaVersionzaiD5WQEIjZmmAHByuxdNUja7J7o5no99kVAJiAU4"
+          "versionLogicalId": "BriefingProxyLambdaVersionK56O3HxZiCN1yAF9RVSpU00cIoJqLP9QMDsWqVmPYLg"
         },
         "strategyMonitorProxy": {
           "handler": "src/strategy-monitor-proxy.handler",
@@ -1008,7 +1148,26 @@
           "memory": 256,
           "runtime": "nodejs22.x",
           "vpc": {},
-          "versionLogicalId": "StrategyMonitorProxyLambdaVersionWHjllraeBtB659Ozm2dFDV011x6ZjWM0aTlp8dto"
+          "versionLogicalId": "StrategyMonitorProxyLambdaVersionTTmHuOUMOf4ajMGLhRPk3vt0FG0A7e3R2ayM84Tr0k"
+        },
+        "slackPoster": {
+          "handler": "src/slack-poster.handler",
+          "name": "financeaiapp-slack-poster",
+          "description": "SNS AlertTopic → Slack channel forwarder",
+          "timeout": 30,
+          "memorySize": 256,
+          "environment": {
+            "SLACK_TOKEN_PARAM": "<REDACTED>",
+            "SLACK_CHANNEL_PARAM": "/financeaiapp/slack-ops-channel",
+            "PROJECT_TAG": "financeaiapp",
+            "NODE_OPTIONS": "--enable-source-maps"
+          },
+          "events": [],
+          "package": {},
+          "memory": 256,
+          "runtime": "nodejs22.x",
+          "vpc": {},
+          "versionLogicalId": "SlackPosterLambdaVersionb1YUGEAgIWVJLkUqb70qMTHLnW6yruwKl3qQTuOQ"
         }
       },
       "resources": {
@@ -1272,6 +1431,37 @@
               },
               "Protocol": "email",
               "Endpoint": "dongik.dev73@gmail.com"
+            }
+          },
+          "AlertSlackSubscription": {
+            "Type": "AWS::SNS::Subscription",
+            "Properties": {
+              "TopicArn": {
+                "Ref": "AlertTopic"
+              },
+              "Protocol": "lambda",
+              "Endpoint": {
+                "Fn::GetAtt": [
+                  "SlackPosterLambdaFunction",
+                  "Arn"
+                ]
+              }
+            }
+          },
+          "AlertSlackLambdaPermission": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "SlackPosterLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "sns.amazonaws.com",
+              "SourceArn": {
+                "Ref": "AlertTopic"
+              }
             }
           },
           "DailyCostAlarm": {
@@ -1593,6 +1783,24 @@
                   ]
                 }
               ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "ssm:GetParameter"
+              ],
+              "Resource": [
+                "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-bot-token",
+                "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-signing-secret",
+                "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-ops-channel"
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "kms:Decrypt"
+              ],
+              "Resource": "arn:aws:kms:ap-northeast-2:612529367436:alias/aws/ssm"
             }
           ]
         }
@@ -1612,6 +1820,12 @@
             "Type": "AWS::Logs::LogGroup",
             "Properties": {
               "LogGroupName": "/aws/lambda/financeaiapp-strategy-monitor"
+            }
+          },
+          "SlackPosterLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/financeaiapp-slack-poster"
             }
           },
           "IamRoleLambdaExecution": {
@@ -1661,6 +1875,9 @@
                           },
                           {
                             "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-strategy-monitor:*"
+                          },
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-slack-poster:*"
                           }
                         ]
                       },
@@ -1675,6 +1892,9 @@
                           },
                           {
                             "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-strategy-monitor:*:*"
+                          },
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-slack-poster:*:*"
                           }
                         ]
                       },
@@ -1707,6 +1927,24 @@
                             ]
                           }
                         ]
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "ssm:GetParameter"
+                        ],
+                        "Resource": [
+                          "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-bot-token",
+                          "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-signing-secret",
+                          "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-ops-channel"
+                        ]
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "kms:Decrypt"
+                        ],
+                        "Resource": "arn:aws:kms:ap-northeast-2:612529367436:alias/aws/ssm"
                       }
                     ]
                   }
@@ -1733,7 +1971,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-                "S3Key": "serverless/financeaiapp-infra/prod/1776697040127-2026-04-20T14:57:20.127Z/financeaiapp-infra.zip"
+                "S3Key": "serverless/financeaiapp-infra/prod/1776699236365-2026-04-20T15:33:56.365Z/financeaiapp-infra.zip"
               },
               "Handler": "src/briefing-proxy.handler",
               "Runtime": "nodejs22.x",
@@ -1763,7 +2001,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-                "S3Key": "serverless/financeaiapp-infra/prod/1776697040127-2026-04-20T14:57:20.127Z/financeaiapp-infra.zip"
+                "S3Key": "serverless/financeaiapp-infra/prod/1776699236365-2026-04-20T15:33:56.365Z/financeaiapp-infra.zip"
               },
               "Handler": "src/strategy-monitor-proxy.handler",
               "Runtime": "nodejs22.x",
@@ -1788,26 +2026,70 @@
               "StrategyMonitorProxyLogGroup"
             ]
           },
-          "BriefingProxyLambdaVersionzaiD5WQEIjZmmAHByuxdNUja7J7o5no99kVAJiAU4": {
+          "SlackPosterLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
+                "S3Key": "serverless/financeaiapp-infra/prod/1776699236365-2026-04-20T15:33:56.365Z/financeaiapp-infra.zip"
+              },
+              "Handler": "src/slack-poster.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "financeaiapp-slack-poster",
+              "MemorySize": 256,
+              "Timeout": 30,
+              "Description": "SNS AlertTopic → Slack channel forwarder",
+              "Environment": {
+                "Variables": {
+                  "AGENTCORE_RUNTIME_ARN": "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki",
+                  "SLACK_TOKEN_PARAM": "<REDACTED>",
+                  "SLACK_CHANNEL_PARAM": "/financeaiapp/slack-ops-channel",
+                  "PROJECT_TAG": "financeaiapp",
+                  "NODE_OPTIONS": "--enable-source-maps"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "SlackPosterLogGroup"
+            ]
+          },
+          "BriefingProxyLambdaVersionK56O3HxZiCN1yAF9RVSpU00cIoJqLP9QMDsWqVmPYLg": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "BriefingProxyLambdaFunction"
               },
-              "CodeSha256": "eCU1t7JAVugWnlzWnj/RYYrrYHv1a7uj+F977DIKEXQ=",
+              "CodeSha256": "Fr+3s2Y/VK5E79ZaOzVoiaG1lbvKmXapZTEyOLBSeLw=",
               "Description": "EventBridge → AgentCore briefing invocation proxy"
             }
           },
-          "StrategyMonitorProxyLambdaVersionWHjllraeBtB659Ozm2dFDV011x6ZjWM0aTlp8dto": {
+          "StrategyMonitorProxyLambdaVersionTTmHuOUMOf4ajMGLhRPk3vt0FG0A7e3R2ayM84Tr0k": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "StrategyMonitorProxyLambdaFunction"
               },
-              "CodeSha256": "eCU1t7JAVugWnlzWnj/RYYrrYHv1a7uj+F977DIKEXQ=",
+              "CodeSha256": "Fr+3s2Y/VK5E79ZaOzVoiaG1lbvKmXapZTEyOLBSeLw=",
               "Description": "EventBridge → AgentCore strategy monitor (every 30 min)"
+            }
+          },
+          "SlackPosterLambdaVersionb1YUGEAgIWVJLkUqb70qMTHLnW6yruwKl3qQTuOQ": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "SlackPosterLambdaFunction"
+              },
+              "CodeSha256": "Fr+3s2Y/VK5E79ZaOzVoiaG1lbvKmXapZTEyOLBSeLw=",
+              "Description": "SNS AlertTopic → Slack channel forwarder"
             }
           },
           "BriefingProxyEventsRuleSchedule1": {
@@ -2184,6 +2466,37 @@
               "Endpoint": "dongik.dev73@gmail.com"
             }
           },
+          "AlertSlackSubscription": {
+            "Type": "AWS::SNS::Subscription",
+            "Properties": {
+              "TopicArn": {
+                "Ref": "AlertTopic"
+              },
+              "Protocol": "lambda",
+              "Endpoint": {
+                "Fn::GetAtt": [
+                  "SlackPosterLambdaFunction",
+                  "Arn"
+                ]
+              }
+            }
+          },
+          "AlertSlackLambdaPermission": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "SlackPosterLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "sns.amazonaws.com",
+              "SourceArn": {
+                "Ref": "AlertTopic"
+              }
+            }
+          },
           "DailyCostAlarm": {
             "Type": "AWS::CloudWatch::Alarm",
             "Properties": {
@@ -2429,7 +2742,7 @@
           "BriefingProxyLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "BriefingProxyLambdaVersionzaiD5WQEIjZmmAHByuxdNUja7J7o5no99kVAJiAU4"
+              "Ref": "BriefingProxyLambdaVersionK56O3HxZiCN1yAF9RVSpU00cIoJqLP9QMDsWqVmPYLg"
             },
             "Export": {
               "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
@@ -2438,10 +2751,19 @@
           "StrategyMonitorProxyLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "StrategyMonitorProxyLambdaVersionWHjllraeBtB659Ozm2dFDV011x6ZjWM0aTlp8dto"
+              "Ref": "StrategyMonitorProxyLambdaVersionTTmHuOUMOf4ajMGLhRPk3vt0FG0A7e3R2ayM84Tr0k"
             },
             "Export": {
               "Name": "sls-financeaiapp-infra-prod-StrategyMonitorProxyLambdaFunctionQualifiedArn"
+            }
+          },
+          "SlackPosterLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "SlackPosterLambdaVersionb1YUGEAgIWVJLkUqb70qMTHLnW6yruwKl3qQTuOQ"
+            },
+            "Export": {
+              "Name": "sls-financeaiapp-infra-prod-SlackPosterLambdaFunctionQualifiedArn"
             }
           },
           "IdentityPoolId": {
@@ -2490,7 +2812,7 @@
       "serviceProvider": null,
       "instanceParameters": null
     },
-    "serviceRawFile": "# =============================================================================\n# FINANCEAIAPP Infrastructure — Serverless Framework v4\n# =============================================================================\n# Manages: Cognito, S3+CloudFront, Briefing Lambda+EventBridge,\n#          CloudWatch Alarms+SNS. All in Seoul (ap-northeast-2).\n#\n# Deploy:  cd financeaiapp-infra && npm install && serverless deploy\n# Remove:  serverless remove\n# =============================================================================\n\nservice: financeaiapp-infra\nframeworkVersion: \"4\"\n\nprovider:\n  name: aws\n  region: ap-northeast-2\n  runtime: nodejs22.x\n  stage: ${opt:stage, 'prod'}\n  stackTags:\n    Project: financeaiapp\n    Owner: dongik\n    ManagedBy: serverless\n    Environment: ${self:provider.stage}\n    CostCenter: personal\n  environment:\n    AGENTCORE_RUNTIME_ARN: ${ssm:/financeaiapp/agentcore-runtime-arn}\n  iam:\n    role:\n      statements:\n        - Effect: Allow\n          Action:\n            - bedrock-agentcore:InvokeAgentRuntime\n          Resource:\n            - ${ssm:/financeaiapp/agentcore-runtime-arn}\n            - ${ssm:/financeaiapp/agentcore-runtime-arn}/*\n        - Effect: Allow\n          Action:\n            - sqs:SendMessage\n          Resource:\n            - !GetAtt BriefingDLQ.Arn\n            - !GetAtt StrategyMonitorDLQ.Arn\n\nbuild:\n  esbuild:\n    bundle: true\n    minify: true\n    target: node22\n\n# =============================================================================\n# Lambda Functions\n# =============================================================================\nfunctions:\n  briefingProxy:\n    handler: src/briefing-proxy.handler\n    name: financeaiapp-briefing-proxy\n    description: \"EventBridge → AgentCore briefing invocation proxy\"\n    timeout: 120\n    memorySize: 256\n    events:\n      # 8:00 AM KST = 23:00 UTC (previous day)\n      - schedule:\n          rate: cron(0 23 * * ? *)\n          input:\n            time_of_day: \"AM\"\n      # 6:00 PM KST = 09:00 UTC\n      - schedule:\n          rate: cron(0 9 * * ? *)\n          input:\n            time_of_day: \"PM\"\n\n  strategyMonitorProxy:\n    handler: src/strategy-monitor-proxy.handler\n    name: financeaiapp-strategy-monitor\n    description: \"EventBridge → AgentCore strategy monitor (every 30 min)\"\n    timeout: 120\n    memorySize: 256\n    events:\n      # Every 30 minutes during market hours (KST 09:00-23:00 = UTC 00:00-14:00)\n      - schedule:\n          rate: cron(0/30 0-14 * * ? *)\n\n# =============================================================================\n# CloudFormation Resources\n# =============================================================================\nresources:\n  Resources:\n\n    # =========================================================================\n    # SQS — Briefing DLQ\n    # =========================================================================\n    BriefingDLQ:\n      Type: AWS::SQS::Queue\n      Properties:\n        QueueName: financeaiapp-briefing-dlq\n        MessageRetentionPeriod: 1209600  # 14 days\n\n    # Connect Lambda → DLQ via EventInvokeConfig (CFN native, not SLS syntax)\n    BriefingProxyEventInvokeConfig:\n      Type: AWS::Lambda::EventInvokeConfig\n      Properties:\n        FunctionName: financeaiapp-briefing-proxy\n        Qualifier: $LATEST\n        DestinationConfig:\n          OnFailure:\n            Destination: !GetAtt BriefingDLQ.Arn\n      DependsOn: BriefingProxyLambdaFunction\n\n    # =========================================================================\n    # SQS — Strategy Monitor DLQ\n    # =========================================================================\n    StrategyMonitorDLQ:\n      Type: AWS::SQS::Queue\n      Properties:\n        QueueName: financeaiapp-strategy-monitor-dlq\n        MessageRetentionPeriod: 1209600  # 14 days\n\n    StrategyMonitorProxyEventInvokeConfig:\n      Type: AWS::Lambda::EventInvokeConfig\n      Properties:\n        FunctionName: financeaiapp-strategy-monitor\n        Qualifier: $LATEST\n        DestinationConfig:\n          OnFailure:\n            Destination: !GetAtt StrategyMonitorDLQ.Arn\n      DependsOn: StrategyMonitorProxyLambdaFunction\n\n    # =========================================================================\n    # Cognito Identity Pool (Guest/Unauthenticated)\n    # =========================================================================\n    CognitoIdentityPool:\n      Type: AWS::Cognito::IdentityPool\n      Properties:\n        IdentityPoolName: financeaiapp_pool\n        AllowUnauthenticatedIdentities: true\n        AllowClassicFlow: true\n\n    CognitoGuestRole:\n      Type: AWS::IAM::Role\n      Properties:\n        RoleName: financeaiapp-guest-role\n        AssumeRolePolicyDocument:\n          Version: \"2012-10-17\"\n          Statement:\n            - Effect: Allow\n              Principal:\n                Federated: cognito-identity.amazonaws.com\n              Action: sts:AssumeRoleWithWebIdentity\n              Condition:\n                StringEquals:\n                  \"cognito-identity.amazonaws.com:aud\": !Ref CognitoIdentityPool\n                \"ForAnyValue:StringLike\":\n                  \"cognito-identity.amazonaws.com:amr\": unauthenticated\n        Policies:\n          - PolicyName: financeaiapp-guest-agentcore\n            PolicyDocument:\n              Version: \"2012-10-17\"\n              Statement:\n                - Effect: Allow\n                  Action:\n                    - bedrock-agentcore:InvokeAgentRuntime\n                  Resource:\n                    - ${ssm:/financeaiapp/agentcore-runtime-arn}\n                    - ${ssm:/financeaiapp/agentcore-runtime-arn}/*\n\n    CognitoRoleAttachment:\n      Type: AWS::Cognito::IdentityPoolRoleAttachment\n      Properties:\n        IdentityPoolId: !Ref CognitoIdentityPool\n        Roles:\n          unauthenticated: !GetAtt CognitoGuestRole.Arn\n\n    # =========================================================================\n    # S3 — Frontend Hosting\n    # =========================================================================\n    FrontendBucket:\n      Type: AWS::S3::Bucket\n      Properties:\n        BucketName: financeaiapp-frontend-${aws:accountId}\n        PublicAccessBlockConfiguration:\n          BlockPublicAcls: true\n          BlockPublicPolicy: true\n          IgnorePublicAcls: true\n          RestrictPublicBuckets: true\n\n    FrontendBucketPolicy:\n      Type: AWS::S3::BucketPolicy\n      Properties:\n        Bucket: !Ref FrontendBucket\n        PolicyDocument:\n          Version: \"2012-10-17\"\n          Statement:\n            - Sid: AllowCloudFrontOAC\n              Effect: Allow\n              Principal:\n                Service: cloudfront.amazonaws.com\n              Action: s3:GetObject\n              Resource: !Sub \"${FrontendBucket.Arn}/*\"\n              Condition:\n                StringEquals:\n                  \"AWS:SourceArn\": !Sub \"arn:aws:cloudfront::${aws:accountId}:distribution/${CloudFrontDistribution}\"\n\n    # =========================================================================\n    # CloudFront — CDN\n    # =========================================================================\n    CloudFrontOAC:\n      Type: AWS::CloudFront::OriginAccessControl\n      Properties:\n        OriginAccessControlConfig:\n          Name: financeaiapp-oac\n          OriginAccessControlOriginType: s3\n          SigningBehavior: always\n          SigningProtocol: sigv4\n\n    CloudFrontDistribution:\n      Type: AWS::CloudFront::Distribution\n      Properties:\n        DistributionConfig:\n          Enabled: true\n          Comment: \"financeaiapp frontend\"\n          DefaultRootObject: index.html\n          Origins:\n            - Id: S3Origin\n              DomainName: !GetAtt FrontendBucket.RegionalDomainName\n              OriginAccessControlId: !GetAtt CloudFrontOAC.Id\n              S3OriginConfig:\n                OriginAccessIdentity: \"\"\n          DefaultCacheBehavior:\n            TargetOriginId: S3Origin\n            ViewerProtocolPolicy: redirect-to-https\n            AllowedMethods: [GET, HEAD]\n            CachedMethods: [GET, HEAD]\n            Compress: true\n            ForwardedValues:\n              QueryString: false\n              Cookies:\n                Forward: none\n          CustomErrorResponses:\n            # SPA fallback: 404/403 → index.html\n            - ErrorCode: 404\n              ResponseCode: 200\n              ResponsePagePath: /index.html\n              ErrorCachingMinTTL: 0\n            - ErrorCode: 403\n              ResponseCode: 200\n              ResponsePagePath: /index.html\n              ErrorCachingMinTTL: 0\n          PriceClass: PriceClass_200\n\n    # =========================================================================\n    # SNS — Alert Topic\n    # =========================================================================\n    AlertTopic:\n      Type: AWS::SNS::Topic\n      Properties:\n        TopicName: financeaiapp-alerts\n        DisplayName: \"finance-ai-app alerts\"\n\n    AlertEmailSubscription:\n      Type: AWS::SNS::Subscription\n      Properties:\n        TopicArn: !Ref AlertTopic\n        Protocol: email\n        Endpoint: dongik.dev73@gmail.com\n\n    # =========================================================================\n    # CloudWatch Alarms\n    # =========================================================================\n    DailyCostAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-daily-cost\n        AlarmDescription: \"Daily AWS cost > $5\"\n        Namespace: AWS/Billing\n        MetricName: EstimatedCharges\n        Dimensions:\n          - Name: Currency\n            Value: USD\n        Statistic: Maximum\n        Period: 21600  # 6 hours\n        EvaluationPeriods: 1\n        Threshold: 5\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    BriefingLambdaErrorsAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-lambda-errors\n        AlarmDescription: \"Briefing Lambda errors in last 15 min\"\n        Namespace: AWS/Lambda\n        MetricName: Errors\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-briefing-proxy\n        Statistic: Sum\n        Period: 900  # 15 min\n        EvaluationPeriods: 1\n        Threshold: 1\n        ComparisonOperator: GreaterThanOrEqualToThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    BriefingDLQDepthAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-dlq-depth\n        AlarmDescription: \"Briefing DLQ has messages — failed invocations\"\n        Namespace: AWS/SQS\n        MetricName: ApproximateNumberOfMessagesVisible\n        Dimensions:\n          - Name: QueueName\n            Value: financeaiapp-briefing-dlq\n        Statistic: Maximum\n        Period: 300  # 5 min\n        EvaluationPeriods: 1\n        Threshold: 0\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    StrategyMonitorLambdaErrorsAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-strategy-monitor-errors\n        AlarmDescription: \"Strategy Monitor Lambda errors in last 15 min\"\n        Namespace: AWS/Lambda\n        MetricName: Errors\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-strategy-monitor\n        Statistic: Sum\n        Period: 900  # 15 min\n        EvaluationPeriods: 1\n        Threshold: 1\n        ComparisonOperator: GreaterThanOrEqualToThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    StrategyMonitorDLQDepthAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-strategy-monitor-dlq-depth\n        AlarmDescription: \"Strategy Monitor DLQ has messages — failed invocations\"\n        Namespace: AWS/SQS\n        MetricName: ApproximateNumberOfMessagesVisible\n        Dimensions:\n          - Name: QueueName\n            Value: financeaiapp-strategy-monitor-dlq\n        Statistic: Maximum\n        Period: 300  # 5 min\n        EvaluationPeriods: 1\n        Threshold: 0\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    # =========================================================================\n    # CloudWatch Alarms — Duration/Throttles (M2)\n    # =========================================================================\n    BriefingLambdaDurationAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-lambda-duration\n        AlarmDescription: \"Briefing Lambda p95 duration > 100s (timeout 120s)\"\n        Namespace: AWS/Lambda\n        MetricName: Duration\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-briefing-proxy\n        ExtendedStatistic: p95\n        Period: 900  # 15 min\n        EvaluationPeriods: 1\n        Threshold: 100000  # ms\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    BriefingLambdaThrottlesAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-lambda-throttles\n        AlarmDescription: \"Briefing Lambda throttled in last 5 min\"\n        Namespace: AWS/Lambda\n        MetricName: Throttles\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-briefing-proxy\n        Statistic: Sum\n        Period: 300\n        EvaluationPeriods: 1\n        Threshold: 0\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    StrategyMonitorLambdaDurationAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-strategy-monitor-duration\n        AlarmDescription: \"Strategy Monitor Lambda p95 duration > 100s (timeout 120s)\"\n        Namespace: AWS/Lambda\n        MetricName: Duration\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-strategy-monitor\n        ExtendedStatistic: p95\n        Period: 900\n        EvaluationPeriods: 1\n        Threshold: 100000\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    StrategyMonitorLambdaThrottlesAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-strategy-monitor-throttles\n        AlarmDescription: \"Strategy Monitor Lambda throttled in last 5 min\"\n        Namespace: AWS/Lambda\n        MetricName: Throttles\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-strategy-monitor\n        Statistic: Sum\n        Period: 300\n        EvaluationPeriods: 1\n        Threshold: 0\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n  # ===========================================================================\n  # Outputs — for frontend env vars and GitHub Actions\n  # ===========================================================================\n  Outputs:\n    IdentityPoolId:\n      Description: Cognito Identity Pool ID (VITE_IDENTITY_POOL_ID)\n      Value: !Ref CognitoIdentityPool\n\n    FrontendBucketName:\n      Description: S3 bucket for frontend deployment\n      Value: !Ref FrontendBucket\n\n    CloudFrontDistributionId:\n      Description: CloudFront distribution ID (for cache invalidation)\n      Value: !Ref CloudFrontDistribution\n\n    CloudFrontDomain:\n      Description: CloudFront domain (public URL)\n      Value: !GetAtt CloudFrontDistribution.DomainName\n\n    AlertTopicArn:\n      Description: SNS topic for alerts\n      Value: !Ref AlertTopic\n",
+    "serviceRawFile": "# =============================================================================\n# FINANCEAIAPP Infrastructure — Serverless Framework v4\n# =============================================================================\n# Manages: Cognito, S3+CloudFront, Briefing Lambda+EventBridge,\n#          CloudWatch Alarms+SNS. All in Seoul (ap-northeast-2).\n#\n# Deploy:  cd financeaiapp-infra && npm install && serverless deploy\n# Remove:  serverless remove\n# =============================================================================\n\nservice: financeaiapp-infra\nframeworkVersion: \"4\"\n\nprovider:\n  name: aws\n  region: ap-northeast-2\n  runtime: nodejs22.x\n  stage: ${opt:stage, 'prod'}\n  stackTags:\n    Project: financeaiapp\n    Owner: dongik\n    ManagedBy: serverless\n    Environment: ${self:provider.stage}\n    CostCenter: personal\n  environment:\n    AGENTCORE_RUNTIME_ARN: ${ssm:/financeaiapp/agentcore-runtime-arn}\n  iam:\n    role:\n      statements:\n        - Effect: Allow\n          Action:\n            - bedrock-agentcore:InvokeAgentRuntime\n          Resource:\n            - ${ssm:/financeaiapp/agentcore-runtime-arn}\n            - ${ssm:/financeaiapp/agentcore-runtime-arn}/*\n        - Effect: Allow\n          Action:\n            - sqs:SendMessage\n          Resource:\n            - !GetAtt BriefingDLQ.Arn\n            - !GetAtt StrategyMonitorDLQ.Arn\n        - Effect: Allow\n          Action:\n            - ssm:GetParameter\n          Resource:\n            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/financeaiapp/slack-bot-token\n            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/financeaiapp/slack-signing-secret\n            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/financeaiapp/slack-ops-channel\n        - Effect: Allow\n          Action:\n            - kms:Decrypt\n          Resource:\n            - arn:aws:kms:${aws:region}:${aws:accountId}:alias/aws/ssm\n\nbuild:\n  esbuild:\n    bundle: true\n    minify: true\n    target: node22\n    platform: node\n    format: esm\n    banner:\n      js: \"import{createRequire as __cr}from'module';const require=__cr(import.meta.url);import{fileURLToPath as __fu}from'url';import{dirname as __dn}from'path';const __filename=__fu(import.meta.url);const __dirname=__dn(__filename);\"\n    outExtension:\n      .js: .mjs\n\n# =============================================================================\n# Lambda Functions\n# =============================================================================\nfunctions:\n  briefingProxy:\n    handler: src/briefing-proxy.handler\n    name: financeaiapp-briefing-proxy\n    description: \"EventBridge → AgentCore briefing invocation proxy\"\n    timeout: 120\n    memorySize: 256\n    events:\n      # 8:00 AM KST = 23:00 UTC (previous day)\n      - schedule:\n          rate: cron(0 23 * * ? *)\n          input:\n            time_of_day: \"AM\"\n      # 6:00 PM KST = 09:00 UTC\n      - schedule:\n          rate: cron(0 9 * * ? *)\n          input:\n            time_of_day: \"PM\"\n\n  strategyMonitorProxy:\n    handler: src/strategy-monitor-proxy.handler\n    name: financeaiapp-strategy-monitor\n    description: \"EventBridge → AgentCore strategy monitor (every 30 min)\"\n    timeout: 120\n    memorySize: 256\n    events:\n      # Every 30 minutes during market hours (KST 09:00-23:00 = UTC 00:00-14:00)\n      - schedule:\n          rate: cron(0/30 0-14 * * ? *)\n\n  slackPoster:\n    handler: src/slack-poster.handler\n    name: financeaiapp-slack-poster\n    description: \"SNS AlertTopic → Slack channel forwarder\"\n    timeout: 30\n    memorySize: 256\n    environment:\n      SLACK_TOKEN_PARAM: /financeaiapp/slack-bot-token\n      SLACK_CHANNEL_PARAM: /financeaiapp/slack-ops-channel\n      PROJECT_TAG: financeaiapp\n    # SNS subscription wired via CFN resources below\n    # (sls `sns` event requires plain ARN string, incompatible with !Ref)\n\n# =============================================================================\n# CloudFormation Resources\n# =============================================================================\nresources:\n  Resources:\n\n    # =========================================================================\n    # SQS — Briefing DLQ\n    # =========================================================================\n    BriefingDLQ:\n      Type: AWS::SQS::Queue\n      Properties:\n        QueueName: financeaiapp-briefing-dlq\n        MessageRetentionPeriod: 1209600  # 14 days\n\n    # Connect Lambda → DLQ via EventInvokeConfig (CFN native, not SLS syntax)\n    BriefingProxyEventInvokeConfig:\n      Type: AWS::Lambda::EventInvokeConfig\n      Properties:\n        FunctionName: financeaiapp-briefing-proxy\n        Qualifier: $LATEST\n        DestinationConfig:\n          OnFailure:\n            Destination: !GetAtt BriefingDLQ.Arn\n      DependsOn: BriefingProxyLambdaFunction\n\n    # =========================================================================\n    # SQS — Strategy Monitor DLQ\n    # =========================================================================\n    StrategyMonitorDLQ:\n      Type: AWS::SQS::Queue\n      Properties:\n        QueueName: financeaiapp-strategy-monitor-dlq\n        MessageRetentionPeriod: 1209600  # 14 days\n\n    StrategyMonitorProxyEventInvokeConfig:\n      Type: AWS::Lambda::EventInvokeConfig\n      Properties:\n        FunctionName: financeaiapp-strategy-monitor\n        Qualifier: $LATEST\n        DestinationConfig:\n          OnFailure:\n            Destination: !GetAtt StrategyMonitorDLQ.Arn\n      DependsOn: StrategyMonitorProxyLambdaFunction\n\n    # =========================================================================\n    # Cognito Identity Pool (Guest/Unauthenticated)\n    # =========================================================================\n    CognitoIdentityPool:\n      Type: AWS::Cognito::IdentityPool\n      Properties:\n        IdentityPoolName: financeaiapp_pool\n        AllowUnauthenticatedIdentities: true\n        AllowClassicFlow: true\n\n    CognitoGuestRole:\n      Type: AWS::IAM::Role\n      Properties:\n        RoleName: financeaiapp-guest-role\n        AssumeRolePolicyDocument:\n          Version: \"2012-10-17\"\n          Statement:\n            - Effect: Allow\n              Principal:\n                Federated: cognito-identity.amazonaws.com\n              Action: sts:AssumeRoleWithWebIdentity\n              Condition:\n                StringEquals:\n                  \"cognito-identity.amazonaws.com:aud\": !Ref CognitoIdentityPool\n                \"ForAnyValue:StringLike\":\n                  \"cognito-identity.amazonaws.com:amr\": unauthenticated\n        Policies:\n          - PolicyName: financeaiapp-guest-agentcore\n            PolicyDocument:\n              Version: \"2012-10-17\"\n              Statement:\n                - Effect: Allow\n                  Action:\n                    - bedrock-agentcore:InvokeAgentRuntime\n                  Resource:\n                    - ${ssm:/financeaiapp/agentcore-runtime-arn}\n                    - ${ssm:/financeaiapp/agentcore-runtime-arn}/*\n\n    CognitoRoleAttachment:\n      Type: AWS::Cognito::IdentityPoolRoleAttachment\n      Properties:\n        IdentityPoolId: !Ref CognitoIdentityPool\n        Roles:\n          unauthenticated: !GetAtt CognitoGuestRole.Arn\n\n    # =========================================================================\n    # S3 — Frontend Hosting\n    # =========================================================================\n    FrontendBucket:\n      Type: AWS::S3::Bucket\n      Properties:\n        BucketName: financeaiapp-frontend-${aws:accountId}\n        PublicAccessBlockConfiguration:\n          BlockPublicAcls: true\n          BlockPublicPolicy: true\n          IgnorePublicAcls: true\n          RestrictPublicBuckets: true\n\n    FrontendBucketPolicy:\n      Type: AWS::S3::BucketPolicy\n      Properties:\n        Bucket: !Ref FrontendBucket\n        PolicyDocument:\n          Version: \"2012-10-17\"\n          Statement:\n            - Sid: AllowCloudFrontOAC\n              Effect: Allow\n              Principal:\n                Service: cloudfront.amazonaws.com\n              Action: s3:GetObject\n              Resource: !Sub \"${FrontendBucket.Arn}/*\"\n              Condition:\n                StringEquals:\n                  \"AWS:SourceArn\": !Sub \"arn:aws:cloudfront::${aws:accountId}:distribution/${CloudFrontDistribution}\"\n\n    # =========================================================================\n    # CloudFront — CDN\n    # =========================================================================\n    CloudFrontOAC:\n      Type: AWS::CloudFront::OriginAccessControl\n      Properties:\n        OriginAccessControlConfig:\n          Name: financeaiapp-oac\n          OriginAccessControlOriginType: s3\n          SigningBehavior: always\n          SigningProtocol: sigv4\n\n    CloudFrontDistribution:\n      Type: AWS::CloudFront::Distribution\n      Properties:\n        DistributionConfig:\n          Enabled: true\n          Comment: \"financeaiapp frontend\"\n          DefaultRootObject: index.html\n          Origins:\n            - Id: S3Origin\n              DomainName: !GetAtt FrontendBucket.RegionalDomainName\n              OriginAccessControlId: !GetAtt CloudFrontOAC.Id\n              S3OriginConfig:\n                OriginAccessIdentity: \"\"\n          DefaultCacheBehavior:\n            TargetOriginId: S3Origin\n            ViewerProtocolPolicy: redirect-to-https\n            AllowedMethods: [GET, HEAD]\n            CachedMethods: [GET, HEAD]\n            Compress: true\n            ForwardedValues:\n              QueryString: false\n              Cookies:\n                Forward: none\n          CustomErrorResponses:\n            # SPA fallback: 404/403 → index.html\n            - ErrorCode: 404\n              ResponseCode: 200\n              ResponsePagePath: /index.html\n              ErrorCachingMinTTL: 0\n            - ErrorCode: 403\n              ResponseCode: 200\n              ResponsePagePath: /index.html\n              ErrorCachingMinTTL: 0\n          PriceClass: PriceClass_200\n\n    # =========================================================================\n    # SNS — Alert Topic\n    # =========================================================================\n    AlertTopic:\n      Type: AWS::SNS::Topic\n      Properties:\n        TopicName: financeaiapp-alerts\n        DisplayName: \"finance-ai-app alerts\"\n\n    AlertEmailSubscription:\n      Type: AWS::SNS::Subscription\n      Properties:\n        TopicArn: !Ref AlertTopic\n        Protocol: email\n        Endpoint: dongik.dev73@gmail.com\n\n    # Slack poster subscription (CFN native — sls sns event can't use !Ref)\n    AlertSlackSubscription:\n      Type: AWS::SNS::Subscription\n      Properties:\n        TopicArn: !Ref AlertTopic\n        Protocol: lambda\n        Endpoint: !GetAtt SlackPosterLambdaFunction.Arn\n\n    AlertSlackLambdaPermission:\n      Type: AWS::Lambda::Permission\n      Properties:\n        FunctionName: !GetAtt SlackPosterLambdaFunction.Arn\n        Action: lambda:InvokeFunction\n        Principal: sns.amazonaws.com\n        SourceArn: !Ref AlertTopic\n\n    # =========================================================================\n    # CloudWatch Alarms\n    # =========================================================================\n    DailyCostAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-daily-cost\n        AlarmDescription: \"Daily AWS cost > $5\"\n        Namespace: AWS/Billing\n        MetricName: EstimatedCharges\n        Dimensions:\n          - Name: Currency\n            Value: USD\n        Statistic: Maximum\n        Period: 21600  # 6 hours\n        EvaluationPeriods: 1\n        Threshold: 5\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    BriefingLambdaErrorsAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-lambda-errors\n        AlarmDescription: \"Briefing Lambda errors in last 15 min\"\n        Namespace: AWS/Lambda\n        MetricName: Errors\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-briefing-proxy\n        Statistic: Sum\n        Period: 900  # 15 min\n        EvaluationPeriods: 1\n        Threshold: 1\n        ComparisonOperator: GreaterThanOrEqualToThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    BriefingDLQDepthAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-dlq-depth\n        AlarmDescription: \"Briefing DLQ has messages — failed invocations\"\n        Namespace: AWS/SQS\n        MetricName: ApproximateNumberOfMessagesVisible\n        Dimensions:\n          - Name: QueueName\n            Value: financeaiapp-briefing-dlq\n        Statistic: Maximum\n        Period: 300  # 5 min\n        EvaluationPeriods: 1\n        Threshold: 0\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    StrategyMonitorLambdaErrorsAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-strategy-monitor-errors\n        AlarmDescription: \"Strategy Monitor Lambda errors in last 15 min\"\n        Namespace: AWS/Lambda\n        MetricName: Errors\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-strategy-monitor\n        Statistic: Sum\n        Period: 900  # 15 min\n        EvaluationPeriods: 1\n        Threshold: 1\n        ComparisonOperator: GreaterThanOrEqualToThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    StrategyMonitorDLQDepthAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-strategy-monitor-dlq-depth\n        AlarmDescription: \"Strategy Monitor DLQ has messages — failed invocations\"\n        Namespace: AWS/SQS\n        MetricName: ApproximateNumberOfMessagesVisible\n        Dimensions:\n          - Name: QueueName\n            Value: financeaiapp-strategy-monitor-dlq\n        Statistic: Maximum\n        Period: 300  # 5 min\n        EvaluationPeriods: 1\n        Threshold: 0\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    # =========================================================================\n    # CloudWatch Alarms — Duration/Throttles (M2)\n    # =========================================================================\n    BriefingLambdaDurationAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-lambda-duration\n        AlarmDescription: \"Briefing Lambda p95 duration > 100s (timeout 120s)\"\n        Namespace: AWS/Lambda\n        MetricName: Duration\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-briefing-proxy\n        ExtendedStatistic: p95\n        Period: 900  # 15 min\n        EvaluationPeriods: 1\n        Threshold: 100000  # ms\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    BriefingLambdaThrottlesAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-briefing-lambda-throttles\n        AlarmDescription: \"Briefing Lambda throttled in last 5 min\"\n        Namespace: AWS/Lambda\n        MetricName: Throttles\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-briefing-proxy\n        Statistic: Sum\n        Period: 300\n        EvaluationPeriods: 1\n        Threshold: 0\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    StrategyMonitorLambdaDurationAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-strategy-monitor-duration\n        AlarmDescription: \"Strategy Monitor Lambda p95 duration > 100s (timeout 120s)\"\n        Namespace: AWS/Lambda\n        MetricName: Duration\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-strategy-monitor\n        ExtendedStatistic: p95\n        Period: 900\n        EvaluationPeriods: 1\n        Threshold: 100000\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n    StrategyMonitorLambdaThrottlesAlarm:\n      Type: AWS::CloudWatch::Alarm\n      Properties:\n        AlarmName: financeaiapp-strategy-monitor-throttles\n        AlarmDescription: \"Strategy Monitor Lambda throttled in last 5 min\"\n        Namespace: AWS/Lambda\n        MetricName: Throttles\n        Dimensions:\n          - Name: FunctionName\n            Value: financeaiapp-strategy-monitor\n        Statistic: Sum\n        Period: 300\n        EvaluationPeriods: 1\n        Threshold: 0\n        ComparisonOperator: GreaterThanThreshold\n        TreatMissingData: notBreaching\n        AlarmActions:\n          - !Ref AlertTopic\n\n  # ===========================================================================\n  # Outputs — for frontend env vars and GitHub Actions\n  # ===========================================================================\n  Outputs:\n    IdentityPoolId:\n      Description: Cognito Identity Pool ID (VITE_IDENTITY_POOL_ID)\n      Value: !Ref CognitoIdentityPool\n\n    FrontendBucketName:\n      Description: S3 bucket for frontend deployment\n      Value: !Ref FrontendBucket\n\n    CloudFrontDistributionId:\n      Description: CloudFront distribution ID (for cache invalidation)\n      Value: !Ref CloudFrontDistribution\n\n    CloudFrontDomain:\n      Description: CloudFront domain (public URL)\n      Value: !GetAtt CloudFrontDistribution.DomainName\n\n    AlertTopicArn:\n      Description: SNS topic for alerts\n      Value: !Ref AlertTopic\n",
     "command": [
       "deploy"
     ],
@@ -2505,7 +2827,7 @@
     "serviceProviderAwsCfStackName": "financeaiapp-infra-prod",
     "serviceProviderAwsCfStackId": "arn:aws:cloudformation:ap-northeast-2:612529367436:stack/financeaiapp-infra-prod/d13d6170-36b4-11f1-9cf2-0a03b6be8697",
     "serviceProviderAwsCfStackCreated": "2026-04-12T21:16:06.422Z",
-    "serviceProviderAwsCfStackUpdated": "2026-04-18T09:54:19.650Z",
+    "serviceProviderAwsCfStackUpdated": "2026-04-20T15:32:52.548Z",
     "serviceProviderAwsCfStackStatus": "UPDATE_COMPLETE",
     "serviceProviderAwsCfStackOutputs": [
       {
@@ -2514,13 +2836,19 @@
         "Description": "S3 bucket for frontend deployment"
       },
       {
+        "OutputKey": "SlackPosterLambdaFunctionQualifiedArn",
+        "OutputValue": "arn:aws:lambda:ap-northeast-2:612529367436:function:financeaiapp-slack-poster:2",
+        "Description": "Current Lambda function version",
+        "ExportName": "sls-financeaiapp-infra-prod-SlackPosterLambdaFunctionQualifiedArn"
+      },
+      {
         "OutputKey": "CloudFrontDistributionId",
         "OutputValue": "ERKSO9H1ZH66F",
         "Description": "CloudFront distribution ID (for cache invalidation)"
       },
       {
         "OutputKey": "StrategyMonitorProxyLambdaFunctionQualifiedArn",
-        "OutputValue": "arn:aws:lambda:ap-northeast-2:612529367436:function:financeaiapp-strategy-monitor:2",
+        "OutputValue": "arn:aws:lambda:ap-northeast-2:612529367436:function:financeaiapp-strategy-monitor:5",
         "Description": "Current Lambda function version",
         "ExportName": "sls-financeaiapp-infra-prod-StrategyMonitorProxyLambdaFunctionQualifiedArn"
       },
@@ -2536,7 +2864,7 @@
       },
       {
         "OutputKey": "BriefingProxyLambdaFunctionQualifiedArn",
-        "OutputValue": "arn:aws:lambda:ap-northeast-2:612529367436:function:financeaiapp-briefing-proxy:8",
+        "OutputValue": "arn:aws:lambda:ap-northeast-2:612529367436:function:financeaiapp-briefing-proxy:11",
         "Description": "Current Lambda function version",
         "ExportName": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
       },
@@ -2565,6 +2893,12 @@
           "Type": "AWS::Logs::LogGroup",
           "Properties": {
             "LogGroupName": "/aws/lambda/financeaiapp-strategy-monitor"
+          }
+        },
+        "SlackPosterLogGroup": {
+          "Type": "AWS::Logs::LogGroup",
+          "Properties": {
+            "LogGroupName": "/aws/lambda/financeaiapp-slack-poster"
           }
         },
         "IamRoleLambdaExecution": {
@@ -2614,6 +2948,9 @@
                         },
                         {
                           "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-strategy-monitor:*"
+                        },
+                        {
+                          "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-slack-poster:*"
                         }
                       ]
                     },
@@ -2628,6 +2965,9 @@
                         },
                         {
                           "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-strategy-monitor:*:*"
+                        },
+                        {
+                          "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-slack-poster:*:*"
                         }
                       ]
                     },
@@ -2660,6 +3000,24 @@
                           ]
                         }
                       ]
+                    },
+                    {
+                      "Effect": "Allow",
+                      "Action": [
+                        "ssm:GetParameter"
+                      ],
+                      "Resource": [
+                        "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-bot-token",
+                        "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-signing-secret",
+                        "arn:aws:ssm:ap-northeast-2:612529367436:parameter/financeaiapp/slack-ops-channel"
+                      ]
+                    },
+                    {
+                      "Effect": "Allow",
+                      "Action": [
+                        "kms:Decrypt"
+                      ],
+                      "Resource": "arn:aws:kms:ap-northeast-2:612529367436:alias/aws/ssm"
                     }
                   ]
                 }
@@ -2686,7 +3044,7 @@
           "Properties": {
             "Code": {
               "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-              "S3Key": "serverless/financeaiapp-infra/prod/1776697040127-2026-04-20T14:57:20.127Z/financeaiapp-infra.zip"
+              "S3Key": "serverless/financeaiapp-infra/prod/1776699236365-2026-04-20T15:33:56.365Z/financeaiapp-infra.zip"
             },
             "Handler": "src/briefing-proxy.handler",
             "Runtime": "nodejs22.x",
@@ -2716,7 +3074,7 @@
           "Properties": {
             "Code": {
               "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-              "S3Key": "serverless/financeaiapp-infra/prod/1776697040127-2026-04-20T14:57:20.127Z/financeaiapp-infra.zip"
+              "S3Key": "serverless/financeaiapp-infra/prod/1776699236365-2026-04-20T15:33:56.365Z/financeaiapp-infra.zip"
             },
             "Handler": "src/strategy-monitor-proxy.handler",
             "Runtime": "nodejs22.x",
@@ -2741,26 +3099,70 @@
             "StrategyMonitorProxyLogGroup"
           ]
         },
-        "BriefingProxyLambdaVersionzaiD5WQEIjZmmAHByuxdNUja7J7o5no99kVAJiAU4": {
+        "SlackPosterLambdaFunction": {
+          "Type": "AWS::Lambda::Function",
+          "Properties": {
+            "Code": {
+              "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
+              "S3Key": "serverless/financeaiapp-infra/prod/1776699236365-2026-04-20T15:33:56.365Z/financeaiapp-infra.zip"
+            },
+            "Handler": "src/slack-poster.handler",
+            "Runtime": "nodejs22.x",
+            "FunctionName": "financeaiapp-slack-poster",
+            "MemorySize": 256,
+            "Timeout": 30,
+            "Description": "SNS AlertTopic → Slack channel forwarder",
+            "Environment": {
+              "Variables": {
+                "AGENTCORE_RUNTIME_ARN": "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki",
+                "SLACK_TOKEN_PARAM": "<REDACTED>",
+                "SLACK_CHANNEL_PARAM": "/financeaiapp/slack-ops-channel",
+                "PROJECT_TAG": "financeaiapp",
+                "NODE_OPTIONS": "--enable-source-maps"
+              }
+            },
+            "Role": {
+              "Fn::GetAtt": [
+                "IamRoleLambdaExecution",
+                "Arn"
+              ]
+            }
+          },
+          "DependsOn": [
+            "SlackPosterLogGroup"
+          ]
+        },
+        "BriefingProxyLambdaVersionK56O3HxZiCN1yAF9RVSpU00cIoJqLP9QMDsWqVmPYLg": {
           "Type": "AWS::Lambda::Version",
           "DeletionPolicy": "Retain",
           "Properties": {
             "FunctionName": {
               "Ref": "BriefingProxyLambdaFunction"
             },
-            "CodeSha256": "eCU1t7JAVugWnlzWnj/RYYrrYHv1a7uj+F977DIKEXQ=",
+            "CodeSha256": "Fr+3s2Y/VK5E79ZaOzVoiaG1lbvKmXapZTEyOLBSeLw=",
             "Description": "EventBridge → AgentCore briefing invocation proxy"
           }
         },
-        "StrategyMonitorProxyLambdaVersionWHjllraeBtB659Ozm2dFDV011x6ZjWM0aTlp8dto": {
+        "StrategyMonitorProxyLambdaVersionTTmHuOUMOf4ajMGLhRPk3vt0FG0A7e3R2ayM84Tr0k": {
           "Type": "AWS::Lambda::Version",
           "DeletionPolicy": "Retain",
           "Properties": {
             "FunctionName": {
               "Ref": "StrategyMonitorProxyLambdaFunction"
             },
-            "CodeSha256": "eCU1t7JAVugWnlzWnj/RYYrrYHv1a7uj+F977DIKEXQ=",
+            "CodeSha256": "Fr+3s2Y/VK5E79ZaOzVoiaG1lbvKmXapZTEyOLBSeLw=",
             "Description": "EventBridge → AgentCore strategy monitor (every 30 min)"
+          }
+        },
+        "SlackPosterLambdaVersionb1YUGEAgIWVJLkUqb70qMTHLnW6yruwKl3qQTuOQ": {
+          "Type": "AWS::Lambda::Version",
+          "DeletionPolicy": "Retain",
+          "Properties": {
+            "FunctionName": {
+              "Ref": "SlackPosterLambdaFunction"
+            },
+            "CodeSha256": "Fr+3s2Y/VK5E79ZaOzVoiaG1lbvKmXapZTEyOLBSeLw=",
+            "Description": "SNS AlertTopic → Slack channel forwarder"
           }
         },
         "BriefingProxyEventsRuleSchedule1": {
@@ -3137,6 +3539,37 @@
             "Endpoint": "dongik.dev73@gmail.com"
           }
         },
+        "AlertSlackSubscription": {
+          "Type": "AWS::SNS::Subscription",
+          "Properties": {
+            "TopicArn": {
+              "Ref": "AlertTopic"
+            },
+            "Protocol": "lambda",
+            "Endpoint": {
+              "Fn::GetAtt": [
+                "SlackPosterLambdaFunction",
+                "Arn"
+              ]
+            }
+          }
+        },
+        "AlertSlackLambdaPermission": {
+          "Type": "AWS::Lambda::Permission",
+          "Properties": {
+            "FunctionName": {
+              "Fn::GetAtt": [
+                "SlackPosterLambdaFunction",
+                "Arn"
+              ]
+            },
+            "Action": "lambda:InvokeFunction",
+            "Principal": "sns.amazonaws.com",
+            "SourceArn": {
+              "Ref": "AlertTopic"
+            }
+          }
+        },
         "DailyCostAlarm": {
           "Type": "AWS::CloudWatch::Alarm",
           "Properties": {
@@ -3382,7 +3815,7 @@
         "BriefingProxyLambdaFunctionQualifiedArn": {
           "Description": "Current Lambda function version",
           "Value": {
-            "Ref": "BriefingProxyLambdaVersionzaiD5WQEIjZmmAHByuxdNUja7J7o5no99kVAJiAU4"
+            "Ref": "BriefingProxyLambdaVersionK56O3HxZiCN1yAF9RVSpU00cIoJqLP9QMDsWqVmPYLg"
           },
           "Export": {
             "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
@@ -3391,10 +3824,19 @@
         "StrategyMonitorProxyLambdaFunctionQualifiedArn": {
           "Description": "Current Lambda function version",
           "Value": {
-            "Ref": "StrategyMonitorProxyLambdaVersionWHjllraeBtB659Ozm2dFDV011x6ZjWM0aTlp8dto"
+            "Ref": "StrategyMonitorProxyLambdaVersionTTmHuOUMOf4ajMGLhRPk3vt0FG0A7e3R2ayM84Tr0k"
           },
           "Export": {
             "Name": "sls-financeaiapp-infra-prod-StrategyMonitorProxyLambdaFunctionQualifiedArn"
+          }
+        },
+        "SlackPosterLambdaFunctionQualifiedArn": {
+          "Description": "Current Lambda function version",
+          "Value": {
+            "Ref": "SlackPosterLambdaVersionb1YUGEAgIWVJLkUqb70qMTHLnW6yruwKl3qQTuOQ"
+          },
+          "Export": {
+            "Name": "sls-financeaiapp-infra-prod-SlackPosterLambdaFunctionQualifiedArn"
           }
         },
         "IdentityPoolId": {

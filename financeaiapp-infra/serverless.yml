@@ -39,12 +39,30 @@ provider:
           Resource:
             - !GetAtt BriefingDLQ.Arn
             - !GetAtt StrategyMonitorDLQ.Arn
+        - Effect: Allow
+          Action:
+            - ssm:GetParameter
+          Resource:
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/financeaiapp/slack-bot-token
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/financeaiapp/slack-signing-secret
+            - arn:aws:ssm:${aws:region}:${aws:accountId}:parameter/financeaiapp/slack-ops-channel
+        - Effect: Allow
+          Action:
+            - kms:Decrypt
+          Resource:
+            - arn:aws:kms:${aws:region}:${aws:accountId}:alias/aws/ssm
 
 build:
   esbuild:
     bundle: true
     minify: true
     target: node22
+    platform: node
+    format: esm
+    banner:
+      js: "import{createRequire as __cr}from'module';const require=__cr(import.meta.url);import{fileURLToPath as __fu}from'url';import{dirname as __dn}from'path';const __filename=__fu(import.meta.url);const __dirname=__dn(__filename);"
+    outExtension:
+      .js: .mjs
 
 # =============================================================================
 # Lambda Functions
@@ -78,6 +96,19 @@ functions:
       # Every 30 minutes during market hours (KST 09:00-23:00 = UTC 00:00-14:00)
       - schedule:
           rate: cron(0/30 0-14 * * ? *)
+
+  slackPoster:
+    handler: src/slack-poster.handler
+    name: financeaiapp-slack-poster
+    description: "SNS AlertTopic → Slack channel forwarder"
+    timeout: 30
+    memorySize: 256
+    environment:
+      SLACK_TOKEN_PARAM: /financeaiapp/slack-bot-token
+      SLACK_CHANNEL_PARAM: /financeaiapp/slack-ops-channel
+      PROJECT_TAG: financeaiapp
+    # SNS subscription wired via CFN resources below
+    # (sls `sns` event requires plain ARN string, incompatible with !Ref)
 
 # =============================================================================
 # CloudFormation Resources
@@ -261,6 +292,22 @@ resources:
         TopicArn: !Ref AlertTopic
         Protocol: email
         Endpoint: dongik.dev73@gmail.com
+
+    # Slack poster subscription (CFN native — sls sns event can't use !Ref)
+    AlertSlackSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        TopicArn: !Ref AlertTopic
+        Protocol: lambda
+        Endpoint: !GetAtt SlackPosterLambdaFunction.Arn
+
+    AlertSlackLambdaPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !GetAtt SlackPosterLambdaFunction.Arn
+        Action: lambda:InvokeFunction
+        Principal: sns.amazonaws.com
+        SourceArn: !Ref AlertTopic
 
     # =========================================================================
     # CloudWatch Alarms
