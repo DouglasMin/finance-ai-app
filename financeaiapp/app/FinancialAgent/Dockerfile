@@ -17,7 +17,9 @@ ENV UV_SYSTEM_PYTHON=1 \
     LANGSMITH_TRACING=true \
     LANGCHAIN_PROJECT=financeaiapp \
     LANGSMITH_PROJECT=financeaiapp \
-    AGENTCORE_MEMORY_ID=FinancialAgentMemory-zkfgNCGggq
+    AGENTCORE_MEMORY_ID=FinancialAgentMemory-zkfgNCGggq \
+    ALERT_TOPIC_ARN=arn:aws:sns:ap-northeast-2:612529367436:financeaiapp-alerts \
+    ENVIRONMENT=prod
 
 RUN useradd -m -u 1000 bedrock_agentcore
 

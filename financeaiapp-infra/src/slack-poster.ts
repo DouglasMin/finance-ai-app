@@ -10,8 +10,15 @@ import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import type { SNSEvent } from "aws-lambda";
 
 const REGION = process.env.AWS_REGION ?? "ap-northeast-2";
-const SLACK_TOKEN_PARAM = process.env.SLACK_TOKEN_PARAM!;
-const SLACK_CHANNEL_PARAM = process.env.SLACK_CHANNEL_PARAM!;
+
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing required env var: ${name}`);
+  return v;
+}
+
+const SLACK_TOKEN_PARAM = requireEnv("SLACK_TOKEN_PARAM");
+const SLACK_CHANNEL_PARAM = requireEnv("SLACK_CHANNEL_PARAM");
 const PROJECT_TAG = process.env.PROJECT_TAG ?? "financeaiapp";
 
 const ssm = new SSMClient({ region: REGION });
@@ -49,6 +56,181 @@ interface CloudWatchAlarmMessage {
     ComparisonOperator?: string;
     Period?: number;
   };
+}
+
+// See docs/sns-event-schema.md for the contract.
+type StrategyEventType =
+  | "strategy_created"
+  | "strategy_removed"
+  | "strategy_toggled"
+  | "strategy_triggered";
+
+interface StrategyEnvelope {
+  type: StrategyEventType;
+  schema_version: string;
+  event_id: string;
+  timestamp: string;
+  source: string;
+  environment: string;
+  correlation_id?: string;
+  data: Record<string, unknown>;
+}
+
+const SUPPORTED_STRATEGY_TYPES: ReadonlySet<StrategyEventType> = new Set([
+  "strategy_created",
+  "strategy_removed",
+  "strategy_toggled",
+  "strategy_triggered",
+]);
+
+function isStrategyEnvelope(obj: unknown): obj is StrategyEnvelope {
+  if (!obj || typeof obj !== "object") return false;
+  const t = (obj as { type?: unknown }).type;
+  return typeof t === "string" && SUPPORTED_STRATEGY_TYPES.has(t as StrategyEventType);
+}
+
+function str(v: unknown): string | undefined {
+  return typeof v === "string" && v.length > 0 ? v : undefined;
+}
+
+function num(v: unknown): number | undefined {
+  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
+function bool(v: unknown): boolean | undefined {
+  return typeof v === "boolean" ? v : undefined;
+}
+
+function fmtNum(n: number, digits = 2): string {
+  return n.toLocaleString("en-US", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+}
+
+function buildStrategyBlocks(env: StrategyEnvelope): unknown[] {
+  const d = env.data;
+  const name = str(d.name) ?? "unknown";
+  const symbol = str(d.symbol) ?? "?";
+  const condition = str(d.condition_human) ?? "";
+  const action = str(d.action);
+  const quantity = num(d.quantity);
+  const actor = str(d.actor) ?? "user";
+
+  let icon = "🔔";
+  let title = "";
+  const fields: string[] = [];
+
+  switch (env.type) {
+    case "strategy_created": {
+      icon = "🆕";
+      title = `전략 등록 · ${name}`;
+      fields.push(`> *종목:* ${symbol}`);
+      if (condition) fields.push(`> *조건:* ${condition}`);
+      if (action) {
+        const actionStr =
+          action === "alert"
+            ? "알림만"
+            : `${action === "buy" ? "매수" : "매도"}${quantity ? ` ${quantity}개` : ""}`;
+        fields.push(`> *행동:* ${actionStr}`);
+      }
+      const description = str(d.description);
+      if (description) fields.push(`> *설명:* ${description}`);
+      fields.push(`> _by ${actor}_`);
+      break;
+    }
+    case "strategy_removed": {
+      icon = "🗑️";
+      title = `전략 삭제 · ${name}`;
+      fields.push(`> *종목:* ${symbol}`);
+      if (condition) fields.push(`> *조건:* ${condition}`);
+      const triggerCount = num(d.trigger_count);
+      if (triggerCount !== undefined) fields.push(`> *누적 발동:* ${triggerCount}회`);
+      const lastTriggered = str(d.last_triggered);
+      if (lastTriggered) fields.push(`> *마지막 발동:* ${lastTriggered}`);
+      break;
+    }
+    case "strategy_toggled": {
+      const enabled = bool(d.enabled) ?? true;
+      icon = enabled ? "▶️" : "⏸️";
+      title = `전략 ${enabled ? "활성화" : "비활성화"} · ${name}`;
+      fields.push(`> *종목:* ${symbol}`);
+      if (condition) fields.push(`> *조건:* ${condition}`);
+      fields.push(`> *상태:* ${enabled ? "🟢 활성" : "⚪ 비활성"}`);
+      break;
+    }
+    case "strategy_triggered": {
+      const success = bool(d.success) ?? false;
+      const price = num(d.price);
+      const currency = str(d.currency) ?? "";
+      const changePct = num(d.change_pct);
+      const fillPrice = num(d.fill_price);
+      const cashAfter = num(d.cash_after);
+      const realizedPnl = num(d.realized_pnl_pct);
+      const triggerCount = num(d.trigger_count);
+      const resultMsg = str(d.result_msg);
+      const errorMsg = str(d.error_msg);
+
+      if (!success) {
+        icon = "⚠️";
+        title = `실행 실패 · ${name}`;
+      } else if (action === "alert") {
+        icon = "🔔";
+        title = `조건 충족 · ${name}`;
+      } else if (action === "buy") {
+        icon = "🟢";
+        title = `자동 매수 · ${name}`;
+      } else if (action === "sell") {
+        icon = realizedPnl !== undefined && realizedPnl < 0 ? "🔴" : "🟢";
+        title = `자동 매도 · ${name}`;
+      } else {
+        icon = "🔔";
+        title = `전략 발동 · ${name}`;
+      }
+
+      fields.push(`> *종목:* ${symbol}`);
+      if (condition) fields.push(`> *조건:* ${condition}`);
+      if (price !== undefined) {
+        const changeStr =
+          changePct !== undefined ? ` (${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%)` : "";
+        fields.push(`> *시세:* ${fmtNum(price)} ${currency}${changeStr}`);
+      }
+      if (success && (action === "buy" || action === "sell") && fillPrice !== undefined) {
+        const qtyStr = quantity !== undefined ? `${quantity}개 ` : "";
+        fields.push(`> *체결:* ${qtyStr}@ ${fmtNum(fillPrice)} ${currency}`);
+      }
+      if (success && realizedPnl !== undefined) {
+        fields.push(
+          `> *실현 손익:* ${realizedPnl >= 0 ? "+" : ""}${realizedPnl.toFixed(2)}%`,
+        );
+      }
+      if (success && cashAfter !== undefined) {
+        fields.push(`> *잔여 현금:* ${fmtNum(cashAfter)} ${currency}`);
+      }
+      if (triggerCount !== undefined) {
+        fields.push(`> *누적 발동:* ${triggerCount}회`);
+      }
+      if (!success) {
+        if (resultMsg) fields.push(`> *결과:* ${resultMsg}`);
+        if (errorMsg) fields.push(`> *에러:* ${errorMsg.slice(0, 200)}`);
+      } else if (action === "alert" && resultMsg) {
+        fields.push(`> ${resultMsg}`);
+      }
+      break;
+    }
+  }
+
+  const headerText = `${icon} *[${PROJECT_TAG}]* ${title}`;
+  const body = fields.join("\n");
+
+  const blocks: unknown[] = [
+    { type: "section", text: { type: "mrkdwn", text: headerText } },
+  ];
+  if (body.length > 0) {
+    blocks.push({ type: "section", text: { type: "mrkdwn", text: body } });
+  }
+  blocks.push({ type: "divider" });
+  return blocks;
 }
 
 function buildAlarmBlocks(alarm: CloudWatchAlarmMessage): unknown[] {
@@ -114,21 +296,30 @@ export const handler = async (event: SNSEvent): Promise<void> => {
 
   for (const record of event.Records) {
     const sns = record.Sns;
-    let blocks: unknown[];
-    let fallbackText: string;
+    let blocks: unknown[] = [];
+    let fallbackText = sns.Subject ?? "Notification";
 
     try {
-      const parsed = JSON.parse(sns.Message) as CloudWatchAlarmMessage;
-      if (parsed.AlarmName && parsed.NewStateValue) {
-        blocks = buildAlarmBlocks(parsed);
-        fallbackText = `[${PROJECT_TAG}] ${parsed.AlarmName} → ${parsed.NewStateValue}`;
+      const parsed: unknown = JSON.parse(sns.Message);
+
+      if (isStrategyEnvelope(parsed)) {
+        blocks = buildStrategyBlocks(parsed);
+        const dataName = str((parsed.data as { name?: unknown } | undefined)?.name);
+        fallbackText = `[${PROJECT_TAG}] ${parsed.type}${dataName ? ` · ${dataName}` : ""}`;
+      } else if (
+        parsed !== null &&
+        typeof parsed === "object" &&
+        typeof (parsed as { AlarmName?: unknown }).AlarmName === "string" &&
+        typeof (parsed as { NewStateValue?: unknown }).NewStateValue === "string"
+      ) {
+        const alarm = parsed as CloudWatchAlarmMessage;
+        blocks = buildAlarmBlocks(alarm);
+        fallbackText = `[${PROJECT_TAG}] ${alarm.AlarmName} → ${alarm.NewStateValue}`;
       } else {
         blocks = buildFallbackBlocks(sns.Subject, sns.Message);
-        fallbackText = sns.Subject ?? "Notification";
       }
     } catch {
       blocks = buildFallbackBlocks(sns.Subject, sns.Message);
-      fallbackText = sns.Subject ?? "Notification";
     }
 
     try {

@@ -11,9 +11,23 @@ from typing import Annotated, Optional, TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from infra.logging_config import get_logger
+from infra.sns import now_iso, publish_strategy_event
 from schemas.market import MarketQuote
 
 log = get_logger("strategy_graph")
+
+
+_CONDITION_HUMAN = {
+    "price_above": lambda t: f"가격 > {t:,.2f}",
+    "price_below": lambda t: f"가격 < {t:,.2f}",
+    "change_pct_above": lambda t: f"변동률 > +{t:.1f}%",
+    "change_pct_below": lambda t: f"변동률 < -{t:.1f}%",
+}
+
+
+def _condition_human(condition_type: str, threshold: float) -> str:
+    renderer = _CONDITION_HUMAN.get(condition_type)
+    return renderer(threshold) if renderer else f"{condition_type} {threshold}"
 
 
 class StrategyState(TypedDict):
@@ -136,22 +150,32 @@ async def execute_node(state: StrategyState) -> dict:
         action = s["action"]
         price = t["price"]
         currency = t["currency"]
+        change_pct = t.get("change_pct")
+        quantity = float(s["quantity"]) if s.get("quantity") else None
+        condition_type = s["condition_type"]
+        threshold = float(s["threshold"])
+        ts_iso = now_iso()
+
+        # Guard: buy/sell without quantity is a data integrity issue
+        if action in ("buy", "sell") and not quantity:
+            log.warning("strategy.skipped_no_quantity", name=name, action=action)
+            errors.append(f"{name}: action={action} but quantity missing")
+            continue
+
+        result_msg = ""
+        success = False
+        error_msg: str | None = None
+        trigger_count_after = int(s.get("trigger_count") or 0)
 
         try:
-            result_msg = ""
-
             if action == "alert":
                 result_msg = f"조건 충족 알림: {s['target_symbol']} = {price}"
-            elif action == "buy" and s.get("quantity"):
-                result_msg = await _execute_buy(
-                    s["target_symbol"], float(s["quantity"])
-                )
-            elif action == "sell" and s.get("quantity"):
-                result_msg = await _execute_sell(
-                    s["target_symbol"], float(s["quantity"])
-                )
+            elif action == "buy":
+                result_msg = await _execute_buy(s["target_symbol"], quantity)
+            elif action == "sell":
+                result_msg = await _execute_sell(s["target_symbol"], quantity)
 
-            success = not result_msg.startswith("❌")
+            success = bool(result_msg) and not result_msg.startswith("❌")
 
             log_strategy_trigger(name, {
                 "action": action,
@@ -167,6 +191,7 @@ async def execute_node(state: StrategyState) -> dict:
                 if strategy_obj:
                     strategy_obj.last_triggered = datetime.now(timezone.utc)
                     strategy_obj.trigger_count += 1
+                    trigger_count_after = strategy_obj.trigger_count
                     upsert_strategy(strategy_obj)
 
             log.info("strategy.executed", name=name, action=action,
@@ -174,7 +199,35 @@ async def execute_node(state: StrategyState) -> dict:
 
         except Exception as e:
             errors.append(f"{name}: {e}")
-            log.error("strategy.execute_failed", name=name, error=str(e))
+            error_msg = str(e)
+            success = False
+            log.error("strategy.execute_failed", name=name, error=error_msg)
+
+        # Notify regardless of success (fire-and-forget)
+        publish_strategy_event(
+            "strategy_triggered",
+            {
+                "name": name,
+                "symbol": s["target_symbol"],
+                "action": action,
+                "quantity": quantity,
+                "condition_type": condition_type,
+                "threshold": threshold,
+                "condition_human": _condition_human(condition_type, threshold),
+                "price": price,
+                "currency": currency,
+                "change_pct": change_pct,
+                "success": success,
+                "result_msg": result_msg[:200] if result_msg else "",
+                "error_msg": error_msg,
+                "fill_price": price if success and action in ("buy", "sell") else None,
+                "cash_after": None,
+                "realized_pnl_pct": None,
+                "trigger_count": trigger_count_after,
+                "strategy_log_sk": f"STRATLOG#{name}#{ts_iso}",
+            },
+            source="strategy_monitor_cron",
+        )
 
     return {"errors": errors}
 

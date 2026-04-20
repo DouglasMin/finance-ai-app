@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from langchain_core.tools import tool
 
 from infra.formatting import format_price
+from infra.sns import publish_strategy_event
 from storage.trading import (
     delete_strategy,
     get_strategy,
@@ -17,6 +18,19 @@ from storage.trading import (
 )
 from schemas.trading import Strategy
 from storage.ddb import query_by_sk_prefix
+
+
+_CONDITION_HUMAN = {
+    "price_above": lambda t: f"가격 > {t:,.2f}",
+    "price_below": lambda t: f"가격 < {t:,.2f}",
+    "change_pct_above": lambda t: f"변동률 > +{t:.1f}%",
+    "change_pct_below": lambda t: f"변동률 < -{t:.1f}%",
+}
+
+
+def _condition_human(condition_type: str, threshold: float) -> str:
+    renderer = _CONDITION_HUMAN.get(condition_type)
+    return renderer(threshold) if renderer else f"{condition_type} {threshold}"
 
 
 @tool
@@ -72,14 +86,26 @@ def create_strategy(
     )
     upsert_strategy(strategy)
 
-    condition_str = {
-        "price_above": f"가격 > {threshold:,.2f}",
-        "price_below": f"가격 < {threshold:,.2f}",
-        "change_pct_above": f"변동률 > +{threshold:.1f}%",
-        "change_pct_below": f"변동률 < -{threshold:.1f}%",
-    }[condition_type]
+    condition_str = _condition_human(condition_type, threshold)
 
     action_str = {"alert": "알림", "buy": f"매수 {quantity}개", "sell": f"매도 {quantity}개"}[action]
+
+    publish_strategy_event(
+        "strategy_created",
+        {
+            "name": strategy.name,
+            "symbol": strategy.target_symbol,
+            "condition_type": condition_type,
+            "threshold": threshold,
+            "condition_human": condition_str,
+            "action": action,
+            "quantity": strategy.quantity,
+            "description": description,
+            "enabled": True,
+            "created_at": strategy.created_at.isoformat(timespec="seconds").replace("+00:00", "Z"),
+            "actor": "user",
+        },
+    )
 
     return (
         f"✅ 전략 등록 완료: **{name}**\n"
@@ -130,6 +156,24 @@ def remove_strategy_tool(name: str) -> str:
     if not existing:
         return f"❌ '{name}' 전략을 찾을 수 없습니다."
     delete_strategy(name)
+
+    publish_strategy_event(
+        "strategy_removed",
+        {
+            "name": existing.name,
+            "symbol": existing.target_symbol,
+            "condition_human": _condition_human(existing.condition_type, existing.threshold),
+            "action": existing.action,
+            "trigger_count": existing.trigger_count,
+            "last_triggered": (
+                existing.last_triggered.isoformat(timespec="seconds").replace("+00:00", "Z")
+                if existing.last_triggered
+                else None
+            ),
+            "actor": "user",
+        },
+    )
+
     return f"🗑️ '{name}' 전략이 삭제되었습니다."
 
 
@@ -144,9 +188,24 @@ def toggle_strategy(name: str, enabled: bool) -> str:
     existing = get_strategy(name)
     if not existing:
         return f"❌ '{name}' 전략을 찾을 수 없습니다."
+    previous_enabled = existing.enabled
     existing.enabled = enabled
     upsert_strategy(existing)
     status = "활성화" if enabled else "비활성화"
+
+    publish_strategy_event(
+        "strategy_toggled",
+        {
+            "name": existing.name,
+            "symbol": existing.target_symbol,
+            "enabled": enabled,
+            "previous_enabled": previous_enabled,
+            "condition_human": _condition_human(existing.condition_type, existing.threshold),
+            "action": existing.action,
+            "actor": "user",
+        },
+    )
+
     return f"✅ '{name}' 전략이 {status}되었습니다."
 
 
