@@ -8,6 +8,12 @@
         "LogGroupName": "/aws/lambda/financeaiapp-briefing-proxy"
       }
     },
+    "StrategyMonitorProxyLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/financeaiapp-strategy-monitor"
+      }
+    },
     "IamRoleLambdaExecution": {
       "Type": "AWS::IAM::Role",
       "Properties": {
@@ -52,6 +58,9 @@
                   "Resource": [
                     {
                       "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-briefing-proxy:*"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-strategy-monitor:*"
                     }
                   ]
                 },
@@ -63,6 +72,9 @@
                   "Resource": [
                     {
                       "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-briefing-proxy:*:*"
+                    },
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-strategy-monitor:*:*"
                     }
                   ]
                 },
@@ -85,6 +97,12 @@
                     {
                       "Fn::GetAtt": [
                         "BriefingDLQ",
+                        "Arn"
+                      ]
+                    },
+                    {
+                      "Fn::GetAtt": [
+                        "StrategyMonitorDLQ",
                         "Arn"
                       ]
                     }
@@ -115,7 +133,7 @@
       "Properties": {
         "Code": {
           "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-          "S3Key": "serverless/financeaiapp-infra/prod/1776080176305-2026-04-13T11:36:16.305Z/financeaiapp-infra.zip"
+          "S3Key": "serverless/financeaiapp-infra/prod/1776697040127-2026-04-20T14:57:20.127Z/financeaiapp-infra.zip"
         },
         "Handler": "src/briefing-proxy.handler",
         "Runtime": "nodejs22.x",
@@ -140,15 +158,56 @@
         "BriefingProxyLogGroup"
       ]
     },
-    "BriefingProxyLambdaVersionpCdTgE9qTtugruEgEL14ykiyk3xoQtlPtPwBYLbJW4": {
+    "StrategyMonitorProxyLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
+          "S3Key": "serverless/financeaiapp-infra/prod/1776697040127-2026-04-20T14:57:20.127Z/financeaiapp-infra.zip"
+        },
+        "Handler": "src/strategy-monitor-proxy.handler",
+        "Runtime": "nodejs22.x",
+        "FunctionName": "financeaiapp-strategy-monitor",
+        "MemorySize": 256,
+        "Timeout": 120,
+        "Description": "EventBridge → AgentCore strategy monitor (every 30 min)",
+        "Environment": {
+          "Variables": {
+            "AGENTCORE_RUNTIME_ARN": "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki",
+            "NODE_OPTIONS": "--enable-source-maps"
+          }
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        }
+      },
+      "DependsOn": [
+        "StrategyMonitorProxyLogGroup"
+      ]
+    },
+    "BriefingProxyLambdaVersionzaiD5WQEIjZmmAHByuxdNUja7J7o5no99kVAJiAU4": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "BriefingProxyLambdaFunction"
         },
-        "CodeSha256": "Zxz0ijBFufMIFOVVnmVKmXJVoFE+upvCbgu16HWo9VY=",
+        "CodeSha256": "eCU1t7JAVugWnlzWnj/RYYrrYHv1a7uj+F977DIKEXQ=",
         "Description": "EventBridge → AgentCore briefing invocation proxy"
+      }
+    },
+    "StrategyMonitorProxyLambdaVersionWHjllraeBtB659Ozm2dFDV011x6ZjWM0aTlp8dto": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "StrategyMonitorProxyLambdaFunction"
+        },
+        "CodeSha256": "eCU1t7JAVugWnlzWnj/RYYrrYHv1a7uj+F977DIKEXQ=",
+        "Description": "EventBridge → AgentCore strategy monitor (every 30 min)"
       }
     },
     "BriefingProxyEventsRuleSchedule1": {
@@ -227,6 +286,43 @@
         }
       }
     },
+    "StrategyMonitorProxyEventsRuleSchedule1": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "ScheduleExpression": "cron(0/30 0-14 * * ? *)",
+        "State": "ENABLED",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "StrategyMonitorProxyLambdaFunction",
+                "Arn"
+              ]
+            },
+            "Id": "strategyMonitorProxySchedule"
+          }
+        ]
+      }
+    },
+    "StrategyMonitorProxyLambdaPermissionEventsRuleSchedule1": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "StrategyMonitorProxyLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "StrategyMonitorProxyEventsRuleSchedule1",
+            "Arn"
+          ]
+        }
+      }
+    },
     "BriefingDLQ": {
       "Type": "AWS::SQS::Queue",
       "Properties": {
@@ -252,6 +348,33 @@
       },
       "DependsOn": [
         "BriefingProxyLambdaFunction"
+      ]
+    },
+    "StrategyMonitorDLQ": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "financeaiapp-strategy-monitor-dlq",
+        "MessageRetentionPeriod": 1209600
+      }
+    },
+    "StrategyMonitorProxyEventInvokeConfig": {
+      "Type": "AWS::Lambda::EventInvokeConfig",
+      "Properties": {
+        "FunctionName": "financeaiapp-strategy-monitor",
+        "Qualifier": "$LATEST",
+        "DestinationConfig": {
+          "OnFailure": {
+            "Destination": {
+              "Fn::GetAtt": [
+                "StrategyMonitorDLQ",
+                "Arn"
+              ]
+            }
+          }
+        }
+      },
+      "DependsOn": [
+        "StrategyMonitorProxyLambdaFunction"
       ]
     },
     "CognitoIdentityPool": {
@@ -538,6 +661,162 @@
           }
         ]
       }
+    },
+    "StrategyMonitorLambdaErrorsAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "financeaiapp-strategy-monitor-errors",
+        "AlarmDescription": "Strategy Monitor Lambda errors in last 15 min",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": "financeaiapp-strategy-monitor"
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 900,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ]
+      }
+    },
+    "StrategyMonitorDLQDepthAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "financeaiapp-strategy-monitor-dlq-depth",
+        "AlarmDescription": "Strategy Monitor DLQ has messages — failed invocations",
+        "Namespace": "AWS/SQS",
+        "MetricName": "ApproximateNumberOfMessagesVisible",
+        "Dimensions": [
+          {
+            "Name": "QueueName",
+            "Value": "financeaiapp-strategy-monitor-dlq"
+          }
+        ],
+        "Statistic": "Maximum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 0,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ]
+      }
+    },
+    "BriefingLambdaDurationAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "financeaiapp-briefing-lambda-duration",
+        "AlarmDescription": "Briefing Lambda p95 duration > 100s (timeout 120s)",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Duration",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": "financeaiapp-briefing-proxy"
+          }
+        ],
+        "ExtendedStatistic": "p95",
+        "Period": 900,
+        "EvaluationPeriods": 1,
+        "Threshold": 100000,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ]
+      }
+    },
+    "BriefingLambdaThrottlesAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "financeaiapp-briefing-lambda-throttles",
+        "AlarmDescription": "Briefing Lambda throttled in last 5 min",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Throttles",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": "financeaiapp-briefing-proxy"
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 0,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ]
+      }
+    },
+    "StrategyMonitorLambdaDurationAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "financeaiapp-strategy-monitor-duration",
+        "AlarmDescription": "Strategy Monitor Lambda p95 duration > 100s (timeout 120s)",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Duration",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": "financeaiapp-strategy-monitor"
+          }
+        ],
+        "ExtendedStatistic": "p95",
+        "Period": 900,
+        "EvaluationPeriods": 1,
+        "Threshold": 100000,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ]
+      }
+    },
+    "StrategyMonitorLambdaThrottlesAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "financeaiapp-strategy-monitor-throttles",
+        "AlarmDescription": "Strategy Monitor Lambda throttled in last 5 min",
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Throttles",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": "financeaiapp-strategy-monitor"
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 0,
+        "ComparisonOperator": "GreaterThanThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "AlertTopic"
+          }
+        ]
+      }
     }
   },
   "Outputs": {
@@ -550,10 +829,19 @@
     "BriefingProxyLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "BriefingProxyLambdaVersionpCdTgE9qTtugruEgEL14ykiyk3xoQtlPtPwBYLbJW4"
+        "Ref": "BriefingProxyLambdaVersionzaiD5WQEIjZmmAHByuxdNUja7J7o5no99kVAJiAU4"
       },
       "Export": {
         "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
+      }
+    },
+    "StrategyMonitorProxyLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "StrategyMonitorProxyLambdaVersionWHjllraeBtB659Ozm2dFDV011x6ZjWM0aTlp8dto"
+      },
+      "Export": {
+        "Name": "sls-financeaiapp-infra-prod-StrategyMonitorProxyLambdaFunctionQualifiedArn"
       }
     },
     "IdentityPoolId": {
