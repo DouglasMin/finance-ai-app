@@ -170,6 +170,7 @@ function buildStrategyBlocks(env: StrategyEnvelope): unknown[] {
       const triggerCount = num(d.trigger_count);
       const resultMsg = str(d.result_msg);
       const errorMsg = str(d.error_msg);
+      const autoDisabled = bool(d.auto_disabled) ?? false;
 
       if (!success) {
         icon = "⚠️";
@@ -215,6 +216,9 @@ function buildStrategyBlocks(env: StrategyEnvelope): unknown[] {
         if (errorMsg) fields.push(`> *에러:* ${errorMsg.slice(0, 200)}`);
       } else if (action === "alert" && resultMsg) {
         fields.push(`> ${resultMsg}`);
+      }
+      if (autoDisabled) {
+        fields.push(`> ⏸️ _1회 실행 후 자동 해제됨. 재활성화는 수동._`);
       }
       break;
     }

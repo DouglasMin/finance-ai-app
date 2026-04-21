@@ -166,6 +166,7 @@ async def execute_node(state: StrategyState) -> dict:
         success = False
         error_msg: str | None = None
         trigger_count_after = int(s.get("trigger_count") or 0)
+        auto_disabled = False
 
         try:
             if action == "alert":
@@ -185,17 +186,21 @@ async def execute_node(state: StrategyState) -> dict:
                 "success": success,
             })
 
-            # Only increment trigger_count on success
+            # On successful trigger: increment count, timestamp, AND auto-disable
+            # to prevent repeated execution (e.g. buy-buy-buy until funds exhausted).
+            # User re-enables manually via toggle_strategy if desired.
             if success:
                 strategy_obj = get_strategy(name)
                 if strategy_obj:
                     strategy_obj.last_triggered = datetime.now(timezone.utc)
                     strategy_obj.trigger_count += 1
                     trigger_count_after = strategy_obj.trigger_count
+                    strategy_obj.enabled = False
+                    auto_disabled = True
                     upsert_strategy(strategy_obj)
 
             log.info("strategy.executed", name=name, action=action,
-                     price=price, success=success)
+                     price=price, success=success, auto_disabled=auto_disabled)
 
         except Exception as e:
             errors.append(f"{name}: {e}")
@@ -225,6 +230,7 @@ async def execute_node(state: StrategyState) -> dict:
                 "realized_pnl_pct": None,
                 "trigger_count": trigger_count_after,
                 "strategy_log_sk": f"STRATLOG#{name}#{ts_iso}",
+                "auto_disabled": auto_disabled,
             },
             source="strategy_monitor_cron",
         )

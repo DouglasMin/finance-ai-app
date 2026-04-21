@@ -163,7 +163,7 @@
       "Properties": {
         "Code": {
           "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-          "S3Key": "serverless/financeaiapp-infra/prod/1776702110811-2026-04-20T16:21:50.811Z/financeaiapp-infra.zip"
+          "S3Key": "serverless/financeaiapp-infra/prod/1776769862574-2026-04-21T11:11:02.574Z/financeaiapp-infra.zip"
         },
         "Handler": "src/briefing-proxy.handler",
         "Runtime": "nodejs22.x",
@@ -193,7 +193,7 @@
       "Properties": {
         "Code": {
           "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-          "S3Key": "serverless/financeaiapp-infra/prod/1776702110811-2026-04-20T16:21:50.811Z/financeaiapp-infra.zip"
+          "S3Key": "serverless/financeaiapp-infra/prod/1776769862574-2026-04-21T11:11:02.574Z/financeaiapp-infra.zip"
         },
         "Handler": "src/strategy-monitor-proxy.handler",
         "Runtime": "nodejs22.x",
@@ -223,7 +223,7 @@
       "Properties": {
         "Code": {
           "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-          "S3Key": "serverless/financeaiapp-infra/prod/1776702110811-2026-04-20T16:21:50.811Z/financeaiapp-infra.zip"
+          "S3Key": "serverless/financeaiapp-infra/prod/1776769862574-2026-04-21T11:11:02.574Z/financeaiapp-infra.zip"
         },
         "Handler": "src/slack-poster.handler",
         "Runtime": "nodejs22.x",
@@ -251,36 +251,36 @@
         "SlackPosterLogGroup"
       ]
     },
-    "BriefingProxyLambdaVersionBJa6PTUJpAuwzbP5UQ6pTyiuj1oEOAcOqu60pshsI": {
+    "BriefingProxyLambdaVersionw3iHvcpMecT8PaotIWQut42HAwgc6kU80k62U4iWuk": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "BriefingProxyLambdaFunction"
         },
-        "CodeSha256": "dTtrs9+pm/lbgiicJ2J9M9ebSk46QBt16f/NCfbDJ3k=",
+        "CodeSha256": "m+VwCwJ5nJo5ygEPhLk+qhREfvUnV1kFurhUpCaaUbE=",
         "Description": "EventBridge → AgentCore briefing invocation proxy"
       }
     },
-    "StrategyMonitorProxyLambdaVersionCPOEzR8MHbRA6aZhVzFEOlhwphI1zqSlwa8aref0KE": {
+    "StrategyMonitorProxyLambdaVersionqSEJtIRQXRINqpl8dupzaYZyBUeZU5FTwKZKBq4": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "StrategyMonitorProxyLambdaFunction"
         },
-        "CodeSha256": "dTtrs9+pm/lbgiicJ2J9M9ebSk46QBt16f/NCfbDJ3k=",
+        "CodeSha256": "m+VwCwJ5nJo5ygEPhLk+qhREfvUnV1kFurhUpCaaUbE=",
         "Description": "EventBridge → AgentCore strategy monitor (every 30 min)"
       }
     },
-    "SlackPosterLambdaVersionFSCU3bmyb9QCMphlO6XukmEHoYNqG3SHmt0HS5ILVI": {
+    "SlackPosterLambdaVersionatztd4g5PopteUqPGr3j6BQvugJ4xrLS7xEHWeytE": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "SlackPosterLambdaFunction"
         },
-        "CodeSha256": "dTtrs9+pm/lbgiicJ2J9M9ebSk46QBt16f/NCfbDJ3k=",
+        "CodeSha256": "m+VwCwJ5nJo5ygEPhLk+qhREfvUnV1kFurhUpCaaUbE=",
         "Description": "SNS AlertTopic → Slack channel forwarder"
       }
     },
@@ -934,7 +934,7 @@
     "BriefingProxyLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "BriefingProxyLambdaVersionBJa6PTUJpAuwzbP5UQ6pTyiuj1oEOAcOqu60pshsI"
+        "Ref": "BriefingProxyLambdaVersionw3iHvcpMecT8PaotIWQut42HAwgc6kU80k62U4iWuk"
       },
       "Export": {
         "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
@@ -943,7 +943,7 @@
     "StrategyMonitorProxyLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "StrategyMonitorProxyLambdaVersionCPOEzR8MHbRA6aZhVzFEOlhwphI1zqSlwa8aref0KE"
+        "Ref": "StrategyMonitorProxyLambdaVersionqSEJtIRQXRINqpl8dupzaYZyBUeZU5FTwKZKBq4"
       },
       "Export": {
         "Name": "sls-financeaiapp-infra-prod-StrategyMonitorProxyLambdaFunctionQualifiedArn"
@@ -952,7 +952,7 @@
     "SlackPosterLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "SlackPosterLambdaVersionFSCU3bmyb9QCMphlO6XukmEHoYNqG3SHmt0HS5ILVI"
+        "Ref": "SlackPosterLambdaVersionatztd4g5PopteUqPGr3j6BQvugJ4xrLS7xEHWeytE"
       },
       "Export": {
         "Name": "sls-financeaiapp-infra-prod-SlackPosterLambdaFunctionQualifiedArn"

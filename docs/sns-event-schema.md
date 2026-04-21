@@ -221,6 +221,7 @@ Emitted by the cron's `execute_node` once per triggered strategy. Highest-volume
 | `realized_pnl_pct` | number \| null | no | Only meaningful on `sell` that closed a position |
 | `trigger_count` | int | yes | Post-increment count |
 | `strategy_log_sk` | string | no | DDB sort key `STRATLOG#{name}#{ts}` — lets Slack link back to the log record |
+| `auto_disabled` | bool | no | `true` when this successful trigger caused `enabled=false` to be set. Prevents repeat execution (e.g. exhausting cash on buy-buy-buy). User must manually re-enable via `toggle_strategy`. |
 
 **Example — successful buy:**
 
