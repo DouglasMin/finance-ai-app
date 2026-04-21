@@ -110,6 +110,17 @@ functions:
     # SNS subscription wired via CFN resources below
     # (sls `sns` event requires plain ARN string, incompatible with !Ref)
 
+  slackInteractive:
+    handler: src/slack-interactive.handler
+    name: financeaiapp-slack-interactive
+    description: "Slack Interactive callback — Phase 3 approval endpoint skeleton"
+    timeout: 10
+    memorySize: 256
+    environment:
+      SLACK_SIGNING_SECRET_PARAM: /financeaiapp/slack-signing-secret
+    # Public Function URL. Slack signs requests with HMAC — handler verifies.
+    url: true
+
 # =============================================================================
 # CloudFormation Resources
 # =============================================================================

@@ -96,6 +96,12 @@
               "LogGroupName": "/aws/lambda/financeaiapp-slack-poster"
             }
           },
+          "SlackInteractiveLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/financeaiapp-slack-interactive"
+            }
+          },
           "IamRoleLambdaExecution": {
             "Type": "AWS::IAM::Role",
             "Properties": {
@@ -146,6 +152,9 @@
                           },
                           {
                             "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-slack-poster:*"
+                          },
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-slack-interactive:*"
                           }
                         ]
                       },
@@ -163,6 +172,9 @@
                           },
                           {
                             "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-slack-poster:*:*"
+                          },
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/financeaiapp-slack-interactive:*:*"
                           }
                         ]
                       },
@@ -203,7 +215,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-                "S3Key": "serverless/financeaiapp-infra/prod/1776769862574-2026-04-21T11:11:02.574Z/financeaiapp-infra.zip"
+                "S3Key": "serverless/financeaiapp-infra/prod/1776770309838-2026-04-21T11:18:29.838Z/financeaiapp-infra.zip"
               },
               "Handler": "src/briefing-proxy.handler",
               "Runtime": "nodejs22.x",
@@ -233,7 +245,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-                "S3Key": "serverless/financeaiapp-infra/prod/1776769862574-2026-04-21T11:11:02.574Z/financeaiapp-infra.zip"
+                "S3Key": "serverless/financeaiapp-infra/prod/1776770309838-2026-04-21T11:18:29.838Z/financeaiapp-infra.zip"
               },
               "Handler": "src/strategy-monitor-proxy.handler",
               "Runtime": "nodejs22.x",
@@ -263,7 +275,7 @@
             "Properties": {
               "Code": {
                 "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
-                "S3Key": "serverless/financeaiapp-infra/prod/1776769862574-2026-04-21T11:11:02.574Z/financeaiapp-infra.zip"
+                "S3Key": "serverless/financeaiapp-infra/prod/1776770309838-2026-04-21T11:18:29.838Z/financeaiapp-infra.zip"
               },
               "Handler": "src/slack-poster.handler",
               "Runtime": "nodejs22.x",
@@ -291,37 +303,113 @@
               "SlackPosterLogGroup"
             ]
           },
-          "BriefingProxyLambdaVersionw3iHvcpMecT8PaotIWQut42HAwgc6kU80k62U4iWuk": {
+          "SlackInteractiveLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": "serverless-framework-deployments-ap-northeast-2-3c4108c6-7849",
+                "S3Key": "serverless/financeaiapp-infra/prod/1776770309838-2026-04-21T11:18:29.838Z/financeaiapp-infra.zip"
+              },
+              "Handler": "src/slack-interactive.handler",
+              "Runtime": "nodejs22.x",
+              "FunctionName": "financeaiapp-slack-interactive",
+              "MemorySize": 256,
+              "Timeout": 10,
+              "Description": "Slack Interactive callback — Phase 3 approval endpoint skeleton",
+              "Environment": {
+                "Variables": {
+                  "AGENTCORE_RUNTIME_ARN": "arn:aws:bedrock-agentcore:ap-northeast-2:612529367436:runtime/FinancialAgent-uYnqdNGMki",
+                  "SLACK_SIGNING_SECRET_PARAM": "/financeaiapp/slack-signing-secret",
+                  "NODE_OPTIONS": "--enable-source-maps"
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "IamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "SlackInteractiveLogGroup"
+            ]
+          },
+          "BriefingProxyLambdaVersionKNExRZIejGoNU7n1Vm6BklgYrKZ2A9IXxs5TizuQn8": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "BriefingProxyLambdaFunction"
               },
-              "CodeSha256": "m+VwCwJ5nJo5ygEPhLk+qhREfvUnV1kFurhUpCaaUbE=",
+              "CodeSha256": "HB6dYSElFzqWEPyHMqUHh/kmUrUyfjc5SaOp3sG50fk=",
               "Description": "EventBridge → AgentCore briefing invocation proxy"
             }
           },
-          "StrategyMonitorProxyLambdaVersionqSEJtIRQXRINqpl8dupzaYZyBUeZU5FTwKZKBq4": {
+          "StrategyMonitorProxyLambdaVersionPSyfhbGsAkmstcYIN4Zsz0rlxZbQdd3XT0uFW8BKpQI": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "StrategyMonitorProxyLambdaFunction"
               },
-              "CodeSha256": "m+VwCwJ5nJo5ygEPhLk+qhREfvUnV1kFurhUpCaaUbE=",
+              "CodeSha256": "HB6dYSElFzqWEPyHMqUHh/kmUrUyfjc5SaOp3sG50fk=",
               "Description": "EventBridge → AgentCore strategy monitor (every 30 min)"
             }
           },
-          "SlackPosterLambdaVersionatztd4g5PopteUqPGr3j6BQvugJ4xrLS7xEHWeytE": {
+          "SlackPosterLambdaVersionbKn6lis2HWKBPm2keTodHbF9IdYPRpOhU0UY1QqU4": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "SlackPosterLambdaFunction"
               },
-              "CodeSha256": "m+VwCwJ5nJo5ygEPhLk+qhREfvUnV1kFurhUpCaaUbE=",
+              "CodeSha256": "HB6dYSElFzqWEPyHMqUHh/kmUrUyfjc5SaOp3sG50fk=",
               "Description": "SNS AlertTopic → Slack channel forwarder"
+            }
+          },
+          "SlackInteractiveLambdaVersion7QdhkGDAEb1Tg3m40FnBmZIAA6fgyBvthQcph1TwAE": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "SlackInteractiveLambdaFunction"
+              },
+              "CodeSha256": "HB6dYSElFzqWEPyHMqUHh/kmUrUyfjc5SaOp3sG50fk=",
+              "Description": "Slack Interactive callback — Phase 3 approval endpoint skeleton"
+            }
+          },
+          "SlackInteractiveLambdaFunctionUrl": {
+            "Type": "AWS::Lambda::Url",
+            "Properties": {
+              "AuthType": "NONE",
+              "TargetFunctionArn": {
+                "Fn::GetAtt": [
+                  "SlackInteractiveLambdaFunction",
+                  "Arn"
+                ]
+              }
+            }
+          },
+          "SlackInteractiveLambdaPermissionFnUrl": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"SlackInteractiveLambdaFunctionUrl\"][\"Properties\"][\"TargetFunctionArn\"]"
+              },
+              "Action": "lambda:InvokeFunctionUrl",
+              "Principal": "*",
+              "FunctionUrlAuthType": "NONE"
+            }
+          },
+          "SlackInteractiveLambdaPermissionFnUrlInvokeFunction": {
+            "Type": "AWS::Lambda::Permission",
+            "Properties": {
+              "FunctionName": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"SlackInteractiveLambdaFunctionUrl\"][\"Properties\"][\"TargetFunctionArn\"]"
+              },
+              "Action": "lambda:InvokeFunction",
+              "Principal": "*",
+              "InvokedViaFunctionUrl": true
             }
           },
           "BriefingProxyEventsRuleSchedule1": {
@@ -974,7 +1062,7 @@
           "BriefingProxyLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "BriefingProxyLambdaVersionw3iHvcpMecT8PaotIWQut42HAwgc6kU80k62U4iWuk"
+              "Ref": "BriefingProxyLambdaVersionKNExRZIejGoNU7n1Vm6BklgYrKZ2A9IXxs5TizuQn8"
             },
             "Export": {
               "Name": "sls-financeaiapp-infra-prod-BriefingProxyLambdaFunctionQualifiedArn"
@@ -983,7 +1071,7 @@
           "StrategyMonitorProxyLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "StrategyMonitorProxyLambdaVersionqSEJtIRQXRINqpl8dupzaYZyBUeZU5FTwKZKBq4"
+              "Ref": "StrategyMonitorProxyLambdaVersionPSyfhbGsAkmstcYIN4Zsz0rlxZbQdd3XT0uFW8BKpQI"
             },
             "Export": {
               "Name": "sls-financeaiapp-infra-prod-StrategyMonitorProxyLambdaFunctionQualifiedArn"
@@ -992,10 +1080,31 @@
           "SlackPosterLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "SlackPosterLambdaVersionatztd4g5PopteUqPGr3j6BQvugJ4xrLS7xEHWeytE"
+              "Ref": "SlackPosterLambdaVersionbKn6lis2HWKBPm2keTodHbF9IdYPRpOhU0UY1QqU4"
             },
             "Export": {
               "Name": "sls-financeaiapp-infra-prod-SlackPosterLambdaFunctionQualifiedArn"
+            }
+          },
+          "SlackInteractiveLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "SlackInteractiveLambdaVersion7QdhkGDAEb1Tg3m40FnBmZIAA6fgyBvthQcph1TwAE"
+            },
+            "Export": {
+              "Name": "sls-financeaiapp-infra-prod-SlackInteractiveLambdaFunctionQualifiedArn"
+            }
+          },
+          "SlackInteractiveLambdaFunctionUrl": {
+            "Description": "Lambda Function URL",
+            "Value": {
+              "Fn::GetAtt": [
+                "SlackInteractiveLambdaFunctionUrl",
+                "FunctionUrl"
+              ]
+            },
+            "Export": {
+              "Name": "sls-financeaiapp-infra-prod-SlackInteractiveLambdaFunctionUrl"
             }
           },
           "IdentityPoolId": {
@@ -1072,7 +1181,7 @@
         "memory": 256,
         "runtime": "nodejs22.x",
         "vpc": {},
-        "versionLogicalId": "BriefingProxyLambdaVersionw3iHvcpMecT8PaotIWQut42HAwgc6kU80k62U4iWuk"
+        "versionLogicalId": "BriefingProxyLambdaVersionKNExRZIejGoNU7n1Vm6BklgYrKZ2A9IXxs5TizuQn8"
       },
       "strategyMonitorProxy": {
         "handler": "src/strategy-monitor-proxy.handler",
@@ -1096,7 +1205,7 @@
         "memory": 256,
         "runtime": "nodejs22.x",
         "vpc": {},
-        "versionLogicalId": "StrategyMonitorProxyLambdaVersionqSEJtIRQXRINqpl8dupzaYZyBUeZU5FTwKZKBq4"
+        "versionLogicalId": "StrategyMonitorProxyLambdaVersionPSyfhbGsAkmstcYIN4Zsz0rlxZbQdd3XT0uFW8BKpQI"
       },
       "slackPoster": {
         "handler": "src/slack-poster.handler",
@@ -1115,7 +1224,25 @@
         "memory": 256,
         "runtime": "nodejs22.x",
         "vpc": {},
-        "versionLogicalId": "SlackPosterLambdaVersionatztd4g5PopteUqPGr3j6BQvugJ4xrLS7xEHWeytE"
+        "versionLogicalId": "SlackPosterLambdaVersionbKn6lis2HWKBPm2keTodHbF9IdYPRpOhU0UY1QqU4"
+      },
+      "slackInteractive": {
+        "handler": "src/slack-interactive.handler",
+        "name": "financeaiapp-slack-interactive",
+        "description": "Slack Interactive callback — Phase 3 approval endpoint skeleton",
+        "timeout": 10,
+        "memorySize": 256,
+        "environment": {
+          "SLACK_SIGNING_SECRET_PARAM": "/financeaiapp/slack-signing-secret",
+          "NODE_OPTIONS": "--enable-source-maps"
+        },
+        "url": true,
+        "events": [],
+        "package": {},
+        "memory": 256,
+        "runtime": "nodejs22.x",
+        "vpc": {},
+        "versionLogicalId": "SlackInteractiveLambdaVersion7QdhkGDAEb1Tg3m40FnBmZIAA6fgyBvthQcph1TwAE"
       }
     },
     "resources": {
@@ -1721,7 +1848,7 @@
     "layers": {}
   },
   "package": {
-    "artifactDirectoryName": "serverless/financeaiapp-infra/prod/1776769862574-2026-04-21T11:11:02.574Z",
+    "artifactDirectoryName": "serverless/financeaiapp-infra/prod/1776770309838-2026-04-21T11:18:29.838Z",
     "artifact": "financeaiapp-infra.zip"
   }
 }
