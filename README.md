@@ -1,5 +1,7 @@
 # finance-ai-app
 
+[Visit Website]https://d240f0ye2047ec.cloudfront.net/
+
 Personal AI financial assistant on AWS Bedrock AgentCore.
 
 A Phase 1 port of a Slack-based briefing bot to a React web UI. Multi-session chat with a LangChain orchestrator, LangGraph research subgraph (parallel market + news fetch → GPT-5.4 analysis), auto-generated morning/evening briefings, and a Bloomberg-style terminal UI.
